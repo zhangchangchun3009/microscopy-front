@@ -1,0 +1,7 @@
+{
+  "pi_host": "10.198.31.242",
+  "gateway_port": 42617,
+  "microscopy_port": 5000,
+  "ws_path": "/ws/chat",
+  "video_path": "/video_feed"
+}
