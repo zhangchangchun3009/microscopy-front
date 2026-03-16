@@ -14,8 +14,12 @@
 ```
 Flutter (Mac)  ──WebSocket──>  MicroClaw (Pi)  ──MCP──>  microscopy_server (Pi)
      │                                                          │
+     ├──────────────── Socket.IO ───────────────────────────────┤
+     │   (get_settings 初始化 + 后续进度/日志等，与 Web 前端一致)    │
      └──────────────── MJPEG 视频流 ────────────────────────────┘
 ```
+
+- **Socket.IO**：连接 microscopy_server 后先 `emit('get_settings')`，后端应用相机/LED 等设置，MJPEG 才能正常显示；同一连接可复用，用于长任务进度（如 `global_scan_progress`、`stitch_progress`、`focus_stack_progress` 等），便于迁移原 Web 前端逻辑。
 
 ## 默认配置
 
@@ -36,7 +40,8 @@ flutter run -d macos
 ## 依赖
 
 - `flutter_mjpeg` — MJPEG 视频流渲染
-- `web_socket_channel` — WebSocket 通信
+- `web_socket_channel` — Agent WebSocket 通信
+- `socket_io_client` — microscopy_server Socket.IO（get_settings 初始化及后续进度等）
 
 ## WebSocket 消息协议
 

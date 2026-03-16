@@ -7,6 +7,7 @@ import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'app_config.dart';
+import 'microscopy_socket.dart';
 
 // ---------------------------------------------------------------------------
 // Chat message model
@@ -88,11 +89,14 @@ class _HomePageState extends State<HomePage> {
   bool _configLoaded = false;
   bool _isVideoLive = true;
 
-  // WebSocket
+  // WebSocket（Agent 对话）
   WebSocketChannel? _channel;
   StreamSubscription? _wsSub;
   bool _wsConnected = false;
   bool _agentBusy = false;
+
+  /// 与 microscopy_server 的 Socket.IO，用于 get_settings 初始化及后续进度等
+  final MicroscopySocket _microscopySocket = MicroscopySocket();
 
   // Chat
   final List<ChatMsg> _messages = [];
@@ -120,6 +124,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _disconnectWs();
+    _microscopySocket.disconnect();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
@@ -131,6 +136,8 @@ class _HomePageState extends State<HomePage> {
       _config = config;
       _configLoaded = true;
     });
+    // 与 Web 前端一致：先连 microscopy_server Socket.IO 并 get_settings，再拉 MJPEG 才正常
+    _microscopySocket.connect('http://${_config.piHost}:${_config.microscopyPort}');
     _connectWs();
   }
 
@@ -461,6 +468,8 @@ class _HomePageState extends State<HomePage> {
       setState(() => _config = draft);
       await _config.saveUser();
       _addStatus('配置已保存到用户文件');
+      _microscopySocket.disconnect();
+      _microscopySocket.connect('http://${_config.piHost}:${_config.microscopyPort}');
       _connectWs();
     }
 
