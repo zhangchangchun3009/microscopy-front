@@ -39,6 +39,18 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Android local config (machine-specific paths, do not commit)
+android/local.properties
+
+# iOS/macOS Flutter generated (ephemeral)
+**/ios/Flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+
+# Keystore & signing (never commit secrets)
+*.jks
+*.keystore
+key.properties
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

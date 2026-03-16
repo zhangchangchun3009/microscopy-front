@@ -52,3 +52,26 @@ flutter run -d macos
 {"type": "tool_result", "name": "fast_focus", "output": "..."}
 {"type": "done", "full_response": "自动对焦已完成，Z轴位置 10.5mm"}
 ```
+
+## 故障排查：WebSocket「was not upgraded」
+
+若出现 `Connection ... was not upgraded to websocket`，说明 TCP 已连通但 HTTP 未完成 WebSocket 升级，常见原因：
+
+1. **Gateway 未监听外网**：Pi 上 `config.toml` 需包含：
+   ```toml
+   [gateway]
+   host = "0.0.0.0"   # 或 "[::]"
+   allow_public_bind = true
+   ```
+   否则仅 `127.0.0.1` 可连，Mac 无法访问。
+
+2. **Pairing 鉴权**：若已启用配对，需在 URL 加 `?token=<bearer_token>`，或临时关闭配对做测试。
+
+3. **验证服务端**：在 Mac 上执行：
+   ```bash
+   curl -v -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+     -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+     -H "Sec-WebSocket-Version: 13" \
+     http://10.198.31.242:42617/ws/chat
+   ```
+   正常应返回 `101 Switching Protocols`；若为 `401` 则需 token，若为 `200` 且是 HTML 则路由或代理配置有误。

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -60,7 +61,23 @@ class MicroscopeApp extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  /// 主界面：左侧为显微镜实时视频流，右侧为 Agent 对话区。
+  ///
+  /// [initialConfig] 与 [skipAutoConnect] 主要用于测试场景：
+  /// - 提供 [initialConfig] 可跳过异步配置加载；
+  /// - 将 [skipAutoConnect] 设为 `true` 时不会自动连接 WebSocket，
+  ///   避免在测试环境中发起真实网络请求。
+  const HomePage({
+    super.key,
+    this.initialConfig,
+    this.skipAutoConnect = false,
+  });
+
+  /// 可选的初始配置，若提供则不再调用 [AppConfig.load]。
+  final AppConfig? initialConfig;
+
+  /// 是否跳过自动连接 WebSocket，仅在测试中使用。
+  final bool skipAutoConnect;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -82,11 +99,22 @@ class _HomePageState extends State<HomePage> {
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   StringBuffer _chunkBuffer = StringBuffer();
+  bool _plainTextMode = false; // 纯文本模式：整段对话为单一可选中块，支持拖选部分复制
 
   @override
   void initState() {
     super.initState();
-    _loadConfigAndConnect();
+    // 在正常运行时按原逻辑加载配置并连接；
+    // 在测试场景中可以通过传入 initialConfig / skipAutoConnect 来跳过异步流程。
+    if (widget.initialConfig != null) {
+      _config = widget.initialConfig!;
+      _configLoaded = true;
+      if (!widget.skipAutoConnect) {
+        unawaited(_connectWs());
+      }
+    } else {
+      _loadConfigAndConnect();
+    }
   }
 
   @override
@@ -529,32 +557,77 @@ class _HomePageState extends State<HomePage> {
         Expanded(
           child: Container(
             color: Colors.black,
-            child: Mjpeg(
-              stream: _config.videoUrl,
-              isLive: _isVideoLive,
-              timeout: const Duration(seconds: 10),
-              fit: BoxFit.contain,
-              error: (context, error, stack) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.videocam_off, size: 48, color: cs.error),
-                    const SizedBox(height: 12),
-                    Text('视频连接失败', style: TextStyle(color: cs.error)),
-                    const SizedBox(height: 4),
-                    Text(
-                      error.toString(),
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
+            child: _isVideoLive
+                ? Mjpeg(
+                    stream: _config.videoUrl,
+                    isLive: true,
+                    timeout: const Duration(seconds: 60),
+                    fit: BoxFit.contain,
+                    error: (context, error, stack) => Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.videocam_off, size: 48, color: cs.error),
+                          const SizedBox(height: 12),
+                          Text('视频连接失败', style: TextStyle(color: cs.error)),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            error.toString(),
+                            style: Theme.of(context).textTheme.bodySmall ??
+                                const TextStyle(),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ),
+                  )
+                : Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.pause_circle_filled,
+                            size: 48, color: cs.onSurfaceVariant),
+                        const SizedBox(height: 12),
+                        Text(
+                          '视频已暂停',
+                          style: TextStyle(color: cs.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         ),
       ],
     );
+  }
+
+  String _formatMessagesForCopy() {
+    final sb = StringBuffer();
+    for (final m in _messages) {
+      final prefix = switch (m.role) {
+        MsgRole.user => '[用户]',
+        MsgRole.assistant => '[助手]',
+        MsgRole.toolCall => '[工具调用: ${m.toolName ?? "?"}]',
+        MsgRole.toolResult => '[工具结果: ${m.toolName ?? ""}]',
+        MsgRole.error => '[错误]',
+        MsgRole.status => '[状态]',
+      };
+      sb.writeln('$prefix ${m.text}');
+      if (m.toolArgs != null && m.toolArgs!.isNotEmpty) {
+        sb.writeln(const JsonEncoder.withIndent('  ').convert(m.toolArgs));
+      }
+    }
+    return sb.toString();
+  }
+
+  Future<void> _copyAllMessages() async {
+    if (_messages.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: _formatMessagesForCopy()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已复制全部对话到剪贴板')),
+      );
+    }
   }
 
   // ── Chat panel ───────────────────────────────────────────────
@@ -570,6 +643,21 @@ class _HomePageState extends State<HomePage> {
               const Icon(Icons.chat, size: 18),
               const SizedBox(width: 8),
               const Expanded(child: Text('Agent 对话')),
+              if (_messages.isNotEmpty) ...[
+                IconButton(
+                  icon: Icon(
+                    _plainTextMode ? Icons.chat_bubble : Icons.text_snippet,
+                    size: 20,
+                  ),
+                  tooltip: _plainTextMode ? '切换为气泡视图' : '切换为纯文本（可拖选部分复制）',
+                  onPressed: () => setState(() => _plainTextMode = !_plainTextMode),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy_all, size: 20),
+                  tooltip: '复制全部对话',
+                  onPressed: _copyAllMessages,
+                ),
+              ],
               if (_agentBusy)
                 const SizedBox(
                   width: 16,
@@ -587,12 +675,14 @@ class _HomePageState extends State<HomePage> {
                     style: TextStyle(color: cs.onSurfaceVariant),
                   ),
                 )
-              : ListView.builder(
-                  controller: _scrollCtrl,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _messages.length,
-                  itemBuilder: (_, i) => _buildMessage(_messages[i], cs),
-                ),
+              : _plainTextMode
+                  ? _buildPlainTextView(cs)
+                  : ListView.builder(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _messages.length,
+                      itemBuilder: (_, i) => _buildMessage(_messages[i], cs),
+                    ),
         ),
         Container(
           padding: const EdgeInsets.all(10),
@@ -633,6 +723,24 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// 纯文本视图：整段对话为单一 SelectableText，支持鼠标拖选任意部分后 Cmd+C 复制
+  Widget _buildPlainTextView(ColorScheme cs) {
+    final text = _formatMessagesForCopy();
+    return SingleChildScrollView(
+      controller: _scrollCtrl,
+      padding: const EdgeInsets.all(12),
+      child: SelectableText(
+        text,
+        style: TextStyle(
+          fontFamily: 'monospace',
+          fontSize: 13,
+          color: cs.onSurface,
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+
   // ── Message bubbles ──────────────────────────────────────────
 
   Widget _buildMessage(ChatMsg msg, ColorScheme cs) {
@@ -656,7 +764,7 @@ class _HomePageState extends State<HomePage> {
           color: cs.primary,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(msg.text, style: TextStyle(color: cs.onPrimary)),
+        child: SelectableText(msg.text, style: TextStyle(color: cs.onPrimary)),
       ),
     );
   }
@@ -689,7 +797,7 @@ class _HomePageState extends State<HomePage> {
       child: ExpansionTile(
         dense: true,
         leading: Icon(Icons.build, size: 18, color: cs.tertiary),
-        title: Text(
+        title: SelectableText(
           '工具调用: ${msg.toolName ?? "?"}',
           style: TextStyle(fontSize: 13, color: cs.tertiary),
         ),
@@ -721,7 +829,7 @@ class _HomePageState extends State<HomePage> {
         initiallyExpanded: false,
         leading:
             Icon(Icons.check_circle_outline, size: 18, color: cs.secondary),
-        title: Text(
+        title: SelectableText(
           '工具结果: ${msg.toolName ?? ""}',
           style: TextStyle(fontSize: 13, color: cs.secondary),
         ),
@@ -753,8 +861,10 @@ class _HomePageState extends State<HomePage> {
           Icon(Icons.error_outline, size: 18, color: cs.error),
           const SizedBox(width: 8),
           Expanded(
-            child:
-                Text(msg.text, style: TextStyle(color: cs.onErrorContainer)),
+            child: SelectableText(
+              msg.text,
+              style: TextStyle(color: cs.onErrorContainer),
+            ),
           ),
         ],
       ),
@@ -765,7 +875,7 @@ class _HomePageState extends State<HomePage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Center(
-        child: Text(
+        child: SelectableText(
           msg.text,
           style: TextStyle(
             fontSize: 11,
