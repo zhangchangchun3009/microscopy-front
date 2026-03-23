@@ -88,7 +88,8 @@ class ChatPanel extends StatelessWidget {
                   controller: scrollController,
                   padding: const EdgeInsets.all(12),
                   itemCount: messages.length,
-                  itemBuilder: (_, i) => _buildMessage(messages[i], cs),
+                  itemBuilder: (context, i) =>
+                      _buildMessage(context, messages[i], cs),
                 ),
         ),
         _buildComposer(cs),
@@ -189,10 +190,10 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildMessage(ChatMsg msg, ColorScheme cs) {
+  Widget _buildMessage(BuildContext context, ChatMsg msg, ColorScheme cs) {
     return switch (msg.role) {
-      MsgRole.user => _userBubble(msg, cs),
-      MsgRole.assistant => _assistantBubble(msg, cs),
+      MsgRole.user => _userBubble(context, msg, cs),
+      MsgRole.assistant => _assistantBubble(context, msg, cs),
       MsgRole.toolCall => _toolCallCard(msg, cs),
       MsgRole.toolResult => _toolResultCard(msg, cs),
       MsgRole.error => _errorCard(msg, cs),
@@ -200,7 +201,7 @@ class ChatPanel extends StatelessWidget {
     };
   }
 
-  Widget _userBubble(ChatMsg msg, ColorScheme cs) {
+  Widget _userBubble(BuildContext context, ChatMsg msg, ColorScheme cs) {
     return Align(
       alignment: Alignment.centerRight,
       child: Column(
@@ -242,9 +243,17 @@ class ChatPanel extends StatelessWidget {
                   .primaryContainer, // Much lighter for better text selection visibility
               borderRadius: BorderRadius.circular(16),
             ),
-            child: SelectableText(
-              msg.text,
-              style: TextStyle(color: cs.onPrimaryContainer),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                textSelectionTheme: TextSelectionThemeData(
+                  selectionColor: Color(0xFF8B4513), // 深棕色 (SaddleBrown)
+                  selectionHandleColor: Color(0xFF8B4513),
+                ),
+              ),
+              child: SelectableText(
+                msg.text,
+                style: TextStyle(color: cs.onPrimaryContainer),
+              ),
             ),
           ),
         ],
@@ -252,7 +261,7 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
-  Widget _assistantBubble(ChatMsg msg, ColorScheme cs) {
+  Widget _assistantBubble(BuildContext context, ChatMsg msg, ColorScheme cs) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Column(
