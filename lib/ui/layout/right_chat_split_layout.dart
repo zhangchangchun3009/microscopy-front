@@ -124,13 +124,15 @@ class _RightChatSplitLayoutState extends State<RightChatSplitLayout> {
                           ),
                         ),
                         Expanded(
-                          child: Column(
+                          child: Stack(
+                            clipBehavior: Clip.none,
                             children: [
-                              SizedBox(
-                                height: 24,
-                                width: double.infinity,
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
+                              widget.rightChatPane,
+                              Positioned(
+                                left: -8,
+                                top: 0,
+                                bottom: 0,
+                                child: Center(
                                   child: InkWell(
                                     key: const ValueKey('right-chat-toggle-handle'),
                                     onTap: () => _toggleChat(windowWidth),
@@ -142,7 +144,6 @@ class _RightChatSplitLayoutState extends State<RightChatSplitLayout> {
                                   ),
                                 ),
                               ),
-                              Expanded(child: widget.rightChatPane),
                             ],
                           ),
                         ),
