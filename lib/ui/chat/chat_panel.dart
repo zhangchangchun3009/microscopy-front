@@ -238,14 +238,13 @@ class ChatPanel extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 8, left: 48),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: cs.primary.withValues(
-                alpha: 0.85,
-              ), // Lighter for text selection visibility
+              color: cs
+                  .primaryContainer, // Much lighter for better text selection visibility
               borderRadius: BorderRadius.circular(16),
             ),
             child: SelectableText(
               msg.text,
-              style: TextStyle(color: cs.onPrimary),
+              style: TextStyle(color: cs.onPrimaryContainer),
             ),
           ),
         ],
