@@ -25,7 +25,7 @@ class MicroscopeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '显微镜代理',
+      title: '显微镜智能助手',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -190,7 +190,7 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('显微镜代理'),
+        title: const Text('显微镜智能助手'),
         centerTitle: false,
         actions: [
           Padding(
