@@ -110,12 +110,18 @@ class _RightChatSplitLayoutState extends State<RightChatSplitLayout> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        GestureDetector(
-                          key: const ValueKey('right-chat-drag-handle'),
-                          behavior: HitTestBehavior.opaque,
-                          onHorizontalDragUpdate: (details) =>
-                              _onResizeDragUpdate(details, windowWidth),
-                          child: const SizedBox(width: _dragHandleWidth),
+                        MouseRegion(
+                          cursor: SystemMouseCursors.resizeLeftRight,
+                          child: GestureDetector(
+                            key: const ValueKey('right-chat-drag-handle'),
+                            behavior: HitTestBehavior.opaque,
+                            onHorizontalDragUpdate: (details) =>
+                                _onResizeDragUpdate(details, windowWidth),
+                            child: Container(
+                              width: _dragHandleWidth,
+                              color: Colors.transparent,
+                            ),
+                          ),
                         ),
                         Expanded(
                           child: Column(
