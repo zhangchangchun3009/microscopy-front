@@ -40,8 +40,9 @@ class AppConfig {
   void applyJson(Map<String, dynamic> json) {
     if (json['pi_host'] is String) piHost = json['pi_host'];
     if (json['gateway_port'] is int) gatewayPort = json['gateway_port'];
-    if (json['microscopy_port'] is int)
+    if (json['microscopy_port'] is int) {
       microscopyPort = json['microscopy_port'];
+    }
     if (json['ws_path'] is String) wsPath = json['ws_path'];
     if (json['video_path'] is String) videoPath = json['video_path'];
   }
