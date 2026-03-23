@@ -68,7 +68,8 @@ class VideoStage extends StatelessWidget {
                           const SizedBox(height: 4),
                           SelectableText(
                             error.toString(),
-                            style: Theme.of(context).textTheme.bodySmall ??
+                            style:
+                                Theme.of(context).textTheme.bodySmall ??
                                 const TextStyle(),
                             textAlign: TextAlign.center,
                           ),
@@ -80,8 +81,11 @@ class VideoStage extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.pause_circle_filled,
-                            size: 48, color: cs.onSurfaceVariant),
+                        Icon(
+                          Icons.pause_circle_filled,
+                          size: 48,
+                          color: cs.onSurfaceVariant,
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           '视频已暂停',

@@ -111,7 +111,10 @@ void main() {
     });
 
     test('collapse 动作本身保存合法化后的展开宽度', () {
-      final model = ChatPanelWidthModel(currentFactor: 0.48, lastExpandedFactor: 0.35);
+      final model = ChatPanelWidthModel(
+        currentFactor: 0.48,
+        lastExpandedFactor: 0.35,
+      );
 
       model.collapse(400);
 
@@ -121,7 +124,10 @@ void main() {
     });
 
     test('collapsed 时 applyDrag 无效', () {
-      final model = ChatPanelWidthModel(currentFactor: 0.35, lastExpandedFactor: 0.35);
+      final model = ChatPanelWidthModel(
+        currentFactor: 0.35,
+        lastExpandedFactor: 0.35,
+      );
       model.collapse(1000);
       final before = model.currentFactor;
 

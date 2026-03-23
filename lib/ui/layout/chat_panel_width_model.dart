@@ -37,9 +37,9 @@ class ChatPanelWidthModel {
     double? currentFactor,
     double? lastExpandedFactor,
     bool collapsed = false,
-  })  : _currentFactor = _sanitizeFactor(currentFactor),
-        _lastExpandedFactor = _sanitizeFactor(lastExpandedFactor),
-        _collapsed = collapsed;
+  }) : _currentFactor = _sanitizeFactor(currentFactor),
+       _lastExpandedFactor = _sanitizeFactor(lastExpandedFactor),
+       _collapsed = collapsed;
 
   /// 应用拖拽偏移并更新当前比例。
   ///
@@ -62,7 +62,9 @@ class ChatPanelWidthModel {
       _lastExpandedFactor = _clampedFactorForWidth(windowWidth, currentWidth);
     } else {
       // 非法窗口宽度下仍保证历史值不超过上界。
-      _lastExpandedFactor = _sanitizeFactor(_lastExpandedFactor).clamp(0.0, maxFactor);
+      _lastExpandedFactor = _sanitizeFactor(
+        _lastExpandedFactor,
+      ).clamp(0.0, maxFactor);
     }
     _collapsed = true;
   }
@@ -103,8 +105,12 @@ class ChatPanelWidthModel {
 
   double _clampedFactorForWidth(double windowWidth, double targetWidth) {
     final maxWidth = maxFactor * windowWidth;
-    final effectiveMinWidth = rawMinWidthPx < maxWidth ? rawMinWidthPx : maxWidth;
-    final clampedWidth = targetWidth.clamp(effectiveMinWidth, maxWidth).toDouble();
+    final effectiveMinWidth = rawMinWidthPx < maxWidth
+        ? rawMinWidthPx
+        : maxWidth;
+    final clampedWidth = targetWidth
+        .clamp(effectiveMinWidth, maxWidth)
+        .toDouble();
     return clampedWidth / windowWidth;
   }
 

@@ -29,7 +29,9 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
   final draft = initialConfig.copy();
   final hostCtrl = TextEditingController(text: draft.piHost);
   final gwPortCtrl = TextEditingController(text: draft.gatewayPort.toString());
-  final msPortCtrl = TextEditingController(text: draft.microscopyPort.toString());
+  final msPortCtrl = TextEditingController(
+    text: draft.microscopyPort.toString(),
+  );
   final wsPathCtrl = TextEditingController(text: draft.wsPath);
   final vidPathCtrl = TextEditingController(text: draft.videoPath);
 
@@ -39,14 +41,14 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
       return StatefulBuilder(
         builder: (ctx, setDialogState) {
           void updatePreview() => setDialogState(() {
-                draft.piHost = hostCtrl.text.trim();
-                draft.gatewayPort =
-                    int.tryParse(gwPortCtrl.text.trim()) ?? draft.gatewayPort;
-                draft.microscopyPort =
-                    int.tryParse(msPortCtrl.text.trim()) ?? draft.microscopyPort;
-                draft.wsPath = wsPathCtrl.text.trim();
-                draft.videoPath = vidPathCtrl.text.trim();
-              });
+            draft.piHost = hostCtrl.text.trim();
+            draft.gatewayPort =
+                int.tryParse(gwPortCtrl.text.trim()) ?? draft.gatewayPort;
+            draft.microscopyPort =
+                int.tryParse(msPortCtrl.text.trim()) ?? draft.microscopyPort;
+            draft.wsPath = wsPathCtrl.text.trim();
+            draft.videoPath = vidPathCtrl.text.trim();
+          });
 
           return AlertDialog(
             title: const Text('连接设置'),
@@ -130,13 +132,18 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
                       width: double.infinity,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(
+                          ctx,
+                        ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('实际地址预览', style: Theme.of(ctx).textTheme.labelSmall),
+                          Text(
+                            '实际地址预览',
+                            style: Theme.of(ctx).textTheme.labelSmall,
+                          ),
                           const SizedBox(height: 4),
                           SelectableText(
                             'WS:  ${draft.wsUrl}\n视频: ${draft.videoUrl}',
@@ -152,10 +159,9 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
                     Text(
                       '开发配置: assets/config.json（随应用分发）\n'
                       '用户配置: $userConfigPath',
-                      style: Theme.of(ctx)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Theme.of(ctx).colorScheme.outline),
+                      style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(ctx).colorScheme.outline,
+                      ),
                     ),
                   ],
                 ),

@@ -7,9 +7,9 @@ import 'chat_models.dart';
 /// Formats message timestamp as "MM-dd HH:mm".
 String _formatMessageTime(DateTime time) {
   return '${time.month.toString().padLeft(2, '0')}-'
-         '${time.day.toString().padLeft(2, '0')} '
-         '${time.hour.toString().padLeft(2, '0')}:'
-         '${time.minute.toString().padLeft(2, '0')}';
+      '${time.day.toString().padLeft(2, '0')} '
+      '${time.hour.toString().padLeft(2, '0')}:'
+      '${time.minute.toString().padLeft(2, '0')}';
 }
 
 /// Message header showing role icon, name, and timestamp.
@@ -40,10 +40,7 @@ class _MessageHeader extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 12,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
         const SizedBox(width: 4),
         Text(
@@ -128,14 +125,14 @@ class ChatPanel extends StatelessWidget {
                   ),
                 )
               : plainTextMode
-                  ? _buildPlainTextView(cs)
-                  : ListView.builder(
-                      key: const ValueKey('chat-message-list'),
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(12),
-                      itemCount: messages.length,
-                      itemBuilder: (_, i) => _buildMessage(messages[i], cs),
-                    ),
+              ? _buildPlainTextView(cs)
+              : ListView.builder(
+                  key: const ValueKey('chat-message-list'),
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(12),
+                  itemCount: messages.length,
+                  itemBuilder: (_, i) => _buildMessage(messages[i], cs),
+                ),
         ),
         _buildComposer(cs),
       ],
@@ -253,11 +250,7 @@ class ChatPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _MessageHeader(
-            role: msg.role,
-            time: msg.time,
-            colorScheme: cs,
-          ),
+          _MessageHeader(role: msg.role, time: msg.time, colorScheme: cs),
           const SizedBox(width: 8),
           Flexible(
             child: Container(
@@ -285,11 +278,7 @@ class ChatPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _MessageHeader(
-            role: msg.role,
-            time: msg.time,
-            colorScheme: cs,
-          ),
+          _MessageHeader(role: msg.role, time: msg.time, colorScheme: cs),
           const SizedBox(width: 8),
           Flexible(
             child: Container(
@@ -350,7 +339,11 @@ class ChatPanel extends StatelessWidget {
       child: ExpansionTile(
         dense: true,
         initiallyExpanded: false,
-        leading: Icon(Icons.check_circle_outline, size: 18, color: cs.secondary),
+        leading: Icon(
+          Icons.check_circle_outline,
+          size: 18,
+          color: cs.secondary,
+        ),
         title: SelectableText(
           '工具结果: ${msg.toolName ?? ""}',
           style: TextStyle(fontSize: 13, color: cs.secondary),

@@ -4,8 +4,9 @@ import 'package:microscope_app/ui/layout/right_chat_split_layout.dart';
 
 void main() {
   group('RightChatSplitLayout', () {
-    testWidgets('shows collapse button centered on left border when expanded',
-        (tester) async {
+    testWidgets('shows collapse button centered on left border when expanded', (
+      tester,
+    ) async {
       // Arrange & Act
       await tester.pumpWidget(
         MaterialApp(

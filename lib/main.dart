@@ -48,11 +48,7 @@ class HomePage extends StatefulWidget {
   /// - 提供 [initialConfig] 可跳过异步配置加载；
   /// - 将 [skipAutoConnect] 设为 `true` 时不会自动连接 WebSocket，
   ///   避免在测试环境中发起真实网络请求。
-  const HomePage({
-    super.key,
-    this.initialConfig,
-    this.skipAutoConnect = false,
-  });
+  const HomePage({super.key, this.initialConfig, this.skipAutoConnect = false});
 
   /// 可选的初始配置，若提供则不再调用 [AppConfig.load]。
   final AppConfig? initialConfig;
@@ -112,7 +108,9 @@ class _HomePageState extends State<HomePage> {
       _configLoaded = true;
     });
     // 与 Web 前端一致：先连 microscopy_server Socket.IO 并 get_settings，再拉 MJPEG 才正常
-    _microscopySocket.connect('http://${_config.piHost}:${_config.microscopyPort}');
+    _microscopySocket.connect(
+      'http://${_config.piHost}:${_config.microscopyPort}',
+    );
     await _connectWs();
   }
 
@@ -201,7 +199,9 @@ class _HomePageState extends State<HomePage> {
                 Icon(
                   Icons.circle,
                   size: 10,
-                  color: _chatSession.wsConnected ? Colors.greenAccent : Colors.red,
+                  color: _chatSession.wsConnected
+                      ? Colors.greenAccent
+                      : Colors.red,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -252,9 +252,9 @@ class _HomePageState extends State<HomePage> {
       ClipboardData(text: _chatSession.formatMessagesForCopy()),
     );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已复制全部对话到剪贴板')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已复制全部对话到剪贴板')));
     }
   }
 }

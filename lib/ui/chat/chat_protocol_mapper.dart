@@ -85,17 +85,16 @@ class ChatProtocolMapper {
         if (fullResponse != null &&
             fullResponse.isNotEmpty &&
             lastMessageRole != MsgRole.assistant) {
-          mappedMessages.add(ChatMsg(role: MsgRole.assistant, text: fullResponse));
+          mappedMessages.add(
+            ChatMsg(role: MsgRole.assistant, text: fullResponse),
+          );
         }
         nextBusy = false;
         break;
       case 'error':
         flushChunks();
         mappedMessages.add(
-          ChatMsg(
-            role: MsgRole.error,
-            text: data['message'] ?? '未知错误',
-          ),
+          ChatMsg(role: MsgRole.error, text: data['message'] ?? '未知错误'),
         );
         nextBusy = false;
         break;
@@ -107,6 +106,9 @@ class ChatProtocolMapper {
         break;
     }
 
-    return ChatProtocolApplyResult(messages: mappedMessages, agentBusy: nextBusy);
+    return ChatProtocolApplyResult(
+      messages: mappedMessages,
+      agentBusy: nextBusy,
+    );
   }
 }

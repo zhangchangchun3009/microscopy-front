@@ -62,7 +62,10 @@ class _RightChatSplitLayoutState extends State<RightChatSplitLayout> {
     setState(() {
       // 仅在交互事件中写入状态，避免 build() 产生副作用。
       _widthModel.clampForWindow(windowWidth);
-      _widthModel.applyDrag(windowWidth: windowWidth, deltaDx: details.delta.dx);
+      _widthModel.applyDrag(
+        windowWidth: windowWidth,
+        deltaDx: details.delta.dx,
+      );
       _widthModel.saveExpandedWidth();
     });
   }
@@ -86,8 +89,13 @@ class _RightChatSplitLayoutState extends State<RightChatSplitLayout> {
       builder: (context, constraints) {
         final windowWidth = constraints.maxWidth;
         final chatWidth = _effectiveChatWidthForRender(windowWidth);
-        final rightWidth = _widthModel.collapsed ? _collapsedHandleWidth : chatWidth;
-        final leftWidth = (constraints.maxWidth - rightWidth).clamp(0.0, double.infinity);
+        final rightWidth = _widthModel.collapsed
+            ? _collapsedHandleWidth
+            : chatWidth;
+        final leftWidth = (constraints.maxWidth - rightWidth).clamp(
+          0.0,
+          double.infinity,
+        );
 
         return Row(
           children: [
@@ -134,12 +142,17 @@ class _RightChatSplitLayoutState extends State<RightChatSplitLayout> {
                                 bottom: 0,
                                 child: Center(
                                   child: InkWell(
-                                    key: const ValueKey('right-chat-toggle-handle'),
+                                    key: const ValueKey(
+                                      'right-chat-toggle-handle',
+                                    ),
                                     onTap: () => _toggleChat(windowWidth),
                                     child: const SizedBox(
                                       width: 24,
                                       height: 24,
-                                      child: Icon(Icons.chevron_right, size: 18),
+                                      child: Icon(
+                                        Icons.chevron_right,
+                                        size: 18,
+                                      ),
                                     ),
                                   ),
                                 ),

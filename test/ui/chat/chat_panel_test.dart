@@ -5,8 +5,9 @@ import 'package:microscope_app/ui/chat/chat_panel.dart';
 
 void main() {
   group('ChatPanel with message headers', () {
-    testWidgets('displays assistant message with robot icon and timestamp',
-        (tester) async {
+    testWidgets('displays assistant message with robot icon and timestamp', (
+      tester,
+    ) async {
       // Arrange
       final messages = [
         ChatMsg(
@@ -42,8 +43,9 @@ void main() {
       expect(find.text('@03-23 14:30'), findsOneWidget);
     });
 
-    testWidgets('displays user message with person icon and timestamp',
-        (tester) async {
+    testWidgets('displays user message with person icon and timestamp', (
+      tester,
+    ) async {
       // Arrange
       final messages = [
         ChatMsg(

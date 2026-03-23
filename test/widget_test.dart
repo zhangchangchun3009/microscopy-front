@@ -11,14 +11,10 @@ Future<void> _pumpStableFrame(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('HomePage 渲染核心布局',
-      (WidgetTester tester) async {
+  testWidgets('HomePage 渲染核心布局', (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
@@ -28,14 +24,10 @@ void main() {
     expect(find.byKey(const ValueKey('right-chat-panel')), findsOneWidget);
   });
 
-  testWidgets('视频暂停后隐藏，再次点击恢复重新显示流',
-      (WidgetTester tester) async {
+  testWidgets('视频暂停后隐藏，再次点击恢复重新显示流', (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
 
@@ -61,10 +53,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
@@ -89,10 +78,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
@@ -102,8 +88,9 @@ void main() {
     await _pumpStableFrame(tester);
 
     expect(find.byKey(const ValueKey('right-chat-panel')), findsNothing);
-    final handleRect =
-        tester.getRect(find.byKey(const ValueKey('right-chat-collapsed-handle')));
+    final handleRect = tester.getRect(
+      find.byKey(const ValueKey('right-chat-collapsed-handle')),
+    );
     expect(handleRect.width, 24);
   });
 
@@ -115,16 +102,15 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
 
     final panelFinder = find.byKey(const ValueKey('right-chat-panel'));
-    final dragHandleFinder = find.byKey(const ValueKey('right-chat-drag-handle'));
+    final dragHandleFinder = find.byKey(
+      const ValueKey('right-chat-drag-handle'),
+    );
     expect(panelFinder, findsOneWidget);
     expect(dragHandleFinder, findsOneWidget);
 
@@ -148,16 +134,15 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
 
     final panelFinder = find.byKey(const ValueKey('right-chat-panel'));
-    final dragHandleFinder = find.byKey(const ValueKey('right-chat-drag-handle'));
+    final dragHandleFinder = find.byKey(
+      const ValueKey('right-chat-drag-handle'),
+    );
 
     await tester.drag(dragHandleFinder, const Offset(-1000, 0));
     await _pumpStableFrame(tester);
@@ -174,10 +159,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
@@ -185,7 +167,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('right-chat-toggle-handle')));
     await _pumpStableFrame(tester);
 
-    final collapsedFinder = find.byKey(const ValueKey('right-chat-collapsed-handle'));
+    final collapsedFinder = find.byKey(
+      const ValueKey('right-chat-collapsed-handle'),
+    );
     expect(collapsedFinder, findsOneWidget);
     final widthBefore = tester.getRect(collapsedFinder).width;
 
@@ -204,10 +188,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
@@ -244,10 +225,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: HomePage(
-          initialConfig: AppConfig(),
-          skipAutoConnect: true,
-        ),
+        home: HomePage(initialConfig: AppConfig(), skipAutoConnect: true),
       ),
     );
     await _pumpStableFrame(tester);
