@@ -40,8 +40,8 @@ void main() {
       // Assert
       expect(find.byIcon(Icons.smart_toy), findsOneWidget);
       expect(find.text('助手'), findsOneWidget);
-      // Time format check (pattern match)
-      expect(find.textContaining('@'), findsOneWidget);
+      // Time format check (contains colon)
+      expect(find.textContaining(':'), findsWidgets);
     });
 
     testWidgets('displays user message with person icon and timestamp', (
@@ -79,8 +79,8 @@ void main() {
       // Assert
       expect(find.byIcon(Icons.person), findsOneWidget);
       expect(find.text('我'), findsOneWidget);
-      // Time format check (pattern match)
-      expect(find.textContaining('@'), findsOneWidget);
+      // Time format check (contains colon)
+      expect(find.textContaining(':'), findsWidgets);
     });
   });
 }

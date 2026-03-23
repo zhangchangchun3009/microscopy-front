@@ -213,7 +213,7 @@ class ChatPanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '@${_formatMessageTime(msg.time)}',
+                _formatMessageTime(msg.time),
                 style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurfaceVariant.withValues(alpha: 0.7),
@@ -283,7 +283,7 @@ class ChatPanel extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                '@${_formatMessageTime(msg.time)}',
+                _formatMessageTime(msg.time),
                 style: TextStyle(
                   fontSize: 11,
                   color: cs.onSurfaceVariant.withValues(alpha: 0.7),
