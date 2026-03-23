@@ -1,6 +1,6 @@
-# 显微镜代理 — Flutter macOS 客户端
+# 显微镜智能助手 — Flutter macOS 客户端
 
-智能显微镜代理系统的桌面前端，运行在 Mac 上，通过 WebSocket 与树莓派上的 MicroClaw Agent 交互，同时显示显微镜实时视频流。
+智能显微镜助手系统的桌面前端，运行在 Mac 上，通过 WebSocket 与树莓派上的 MicroClaw Agent 交互，同时显示显微镜实时视频流。
 
 ## 功能
 
