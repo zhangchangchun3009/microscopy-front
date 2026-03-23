@@ -12,49 +12,6 @@ String _formatMessageTime(DateTime time) {
       '${time.minute.toString().padLeft(2, '0')}';
 }
 
-/// Message header showing role icon, name, and timestamp.
-class _MessageHeader extends StatelessWidget {
-  const _MessageHeader({
-    required this.role,
-    required this.time,
-    required this.colorScheme,
-  });
-
-  final MsgRole role;
-  final DateTime time;
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final isAssistant = role == MsgRole.assistant;
-    final icon = isAssistant ? Icons.smart_toy : Icons.person;
-    final label = isAssistant ? '助手' : '我';
-    final iconColor = isAssistant
-        ? colorScheme.onSurfaceVariant
-        : colorScheme.primary;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: iconColor),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '@${_formatMessageTime(time)}',
-          style: TextStyle(
-            fontSize: 11,
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// 右侧聊天面板组件。
 ///
 /// 组件只负责 UI 渲染与用户交互事件分发，不持有业务状态。
@@ -246,24 +203,49 @@ class ChatPanel extends StatelessWidget {
   Widget _userBubble(ChatMsg msg, ColorScheme cs) {
     return Align(
       alignment: Alignment.centerRight,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _MessageHeader(role: msg.role, time: msg.time, colorScheme: cs),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 8, left: 48),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: cs.primary,
-                borderRadius: BorderRadius.circular(16),
+          // Header on the right (mirrored)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '@${_formatMessageTime(msg.time)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
               ),
-              child: SelectableText(
-                msg.text,
-                style: TextStyle(color: cs.onPrimary),
+              const SizedBox(width: 4),
+              Text(
+                '我',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.primary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
+              const SizedBox(width: 6),
+              Icon(Icons.person, size: 16, color: cs.primary),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Bubble
+          Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            margin: const EdgeInsets.only(bottom: 8, left: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: cs.primary.withValues(
+                alpha: 0.85,
+              ), // Lighter for text selection visibility
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: SelectableText(
+              msg.text,
+              style: TextStyle(color: cs.onPrimary),
             ),
           ),
         ],
@@ -274,22 +256,45 @@ class ChatPanel extends StatelessWidget {
   Widget _assistantBubble(ChatMsg msg, ColorScheme cs) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _MessageHeader(role: msg.role, time: msg.time, colorScheme: cs),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 8, right: 48),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(16),
+          // Header on the left
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.smart_toy, size: 16, color: cs.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Text(
+                '助手',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              child: SelectableText(msg.text),
+              const SizedBox(width: 4),
+              Text(
+                '@${_formatMessageTime(msg.time)}',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Bubble
+          Container(
+            constraints: const BoxConstraints(maxWidth: 500),
+            margin: const EdgeInsets.only(bottom: 8, right: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(16),
             ),
+            child: SelectableText(msg.text),
           ),
         ],
       ),
