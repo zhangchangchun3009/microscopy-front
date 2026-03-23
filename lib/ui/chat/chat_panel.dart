@@ -4,6 +4,14 @@ import 'package:flutter/material.dart';
 
 import 'chat_models.dart';
 
+/// Formats message timestamp as "MM-dd HH:mm".
+String _formatMessageTime(DateTime time) {
+  return '${time.month.toString().padLeft(2, '0')}-'
+         '${time.day.toString().padLeft(2, '0')} '
+         '${time.hour.toString().padLeft(2, '0')}:'
+         '${time.minute.toString().padLeft(2, '0')}';
+}
+
 /// 右侧聊天面板组件。
 ///
 /// 组件只负责 UI 渲染与用户交互事件分发，不持有业务状态。
