@@ -12,6 +12,52 @@ String _formatMessageTime(DateTime time) {
          '${time.minute.toString().padLeft(2, '0')}';
 }
 
+/// Message header showing role icon, name, and timestamp.
+class _MessageHeader extends StatelessWidget {
+  const _MessageHeader({
+    required this.role,
+    required this.time,
+    required this.colorScheme,
+  });
+
+  final MsgRole role;
+  final DateTime time;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final isAssistant = role == MsgRole.assistant;
+    final icon = isAssistant ? Icons.smart_toy : Icons.person;
+    final label = isAssistant ? '助手' : '我';
+    final iconColor = isAssistant
+        ? colorScheme.onSurfaceVariant
+        : colorScheme.primary;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: iconColor),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '@${_formatMessageTime(time)}',
+          style: TextStyle(
+            fontSize: 11,
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// 右侧聊天面板组件。
 ///
 /// 组件只负责 UI 渲染与用户交互事件分发，不持有业务状态。
