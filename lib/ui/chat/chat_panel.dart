@@ -249,14 +249,31 @@ class ChatPanel extends StatelessWidget {
   Widget _userBubble(ChatMsg msg, ColorScheme cs) {
     return Align(
       alignment: Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8, left: 48),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: cs.primary,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: SelectableText(msg.text, style: TextStyle(color: cs.onPrimary)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MessageHeader(
+            role: msg.role,
+            time: msg.time,
+            colorScheme: cs,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8, left: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: cs.primary,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SelectableText(
+                msg.text,
+                style: TextStyle(color: cs.onPrimary),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -264,14 +281,28 @@ class ChatPanel extends StatelessWidget {
   Widget _assistantBubble(ChatMsg msg, ColorScheme cs) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8, right: 48),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: SelectableText(msg.text),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MessageHeader(
+            role: msg.role,
+            time: msg.time,
+            colorScheme: cs,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8, right: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: SelectableText(msg.text),
+            ),
+          ),
+        ],
       ),
     );
   }
