@@ -239,20 +239,19 @@ class ChatPanel extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 8, left: 48),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: cs
-                  .primaryContainer, // Much lighter for better text selection visibility
+              color: Color(0xFFE3F2FD), // 浅蓝色 (Material Blue 50)
               borderRadius: BorderRadius.circular(16),
             ),
             child: Theme(
               data: Theme.of(context).copyWith(
                 textSelectionTheme: TextSelectionThemeData(
-                  selectionColor: Color(0xFF8B4513), // 深棕色 (SaddleBrown)
+                  selectionColor: Color(0xFF8B4513), // 深棕色
                   selectionHandleColor: Color(0xFF8B4513),
                 ),
               ),
               child: SelectableText(
                 msg.text,
-                style: TextStyle(color: cs.onPrimaryContainer),
+                style: TextStyle(color: Color(0xFF0D47A1)), // 深蓝色文字 (Blue 900)
               ),
             ),
           ),
