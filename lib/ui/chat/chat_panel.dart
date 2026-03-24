@@ -1,16 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import 'chat_models.dart';
-
-/// Formats message timestamp as "MM-dd HH:mm".
-String _formatMessageTime(DateTime time) {
-  return '${time.month.toString().padLeft(2, '0')}-'
-      '${time.day.toString().padLeft(2, '0')} '
-      '${time.hour.toString().padLeft(2, '0')}:'
-      '${time.minute.toString().padLeft(2, '0')}';
-}
+import 'chat_display_models.dart';
+import 'message_bubble.dart';
+import 'thinking_flow_widget.dart';
 
 /// 右侧聊天面板组件。
 ///
@@ -19,13 +12,13 @@ class ChatPanel extends StatelessWidget {
   /// 创建聊天面板。
   ///
   /// 主要参数：
-  /// - [messages] 当前对话消息列表；
+  /// - [displayItems] 当前对话显示项列表（包含消息和思维块）；
   /// - [inputController]/[scrollController] 由上层状态持有，确保折叠/展开后状态连续；
   /// - [plainTextMode] 控制气泡视图与纯文本视图切换；
   /// - [onSendMessage]/[onTogglePlainTextMode]/[onCopyAllMessages] 由上层注入行为。
   const ChatPanel({
     super.key,
-    required this.messages,
+    required this.displayItems,
     required this.inputController,
     required this.scrollController,
     required this.plainTextMode,
@@ -35,10 +28,11 @@ class ChatPanel extends StatelessWidget {
     required this.onTogglePlainTextMode,
     required this.onCopyAllMessages,
     required this.onSendMessage,
+    required this.onToggleThinkingBlock,
   });
 
-  /// 对话消息列表。
-  final List<ChatMsg> messages;
+  /// 对话显示项列表。
+  final List<ChatDisplayItem> displayItems;
 
   /// 输入框控制器。
   final TextEditingController inputController;
@@ -67,6 +61,9 @@ class ChatPanel extends StatelessWidget {
   /// 发送当前输入消息文本。
   final ValueChanged<String> onSendMessage;
 
+  /// 切换思维块展开状态。
+  final ValueChanged<int> onToggleThinkingBlock;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -74,7 +71,7 @@ class ChatPanel extends StatelessWidget {
       children: [
         _buildHeader(cs),
         Expanded(
-          child: messages.isEmpty
+          child: displayItems.isEmpty
               ? Center(
                   child: Text(
                     '发送消息开始对话',
@@ -87,9 +84,9 @@ class ChatPanel extends StatelessWidget {
                   key: const ValueKey('chat-message-list'),
                   controller: scrollController,
                   padding: const EdgeInsets.all(12),
-                  itemCount: messages.length,
+                  itemCount: displayItems.length,
                   itemBuilder: (context, i) =>
-                      _buildMessage(context, messages[i], cs),
+                      _buildDisplayItem(context, displayItems[i], i),
                 ),
         ),
         _buildComposer(cs),
@@ -106,7 +103,7 @@ class ChatPanel extends StatelessWidget {
           const Icon(Icons.chat, size: 18),
           const SizedBox(width: 8),
           const Expanded(child: Text('Agent 对话')),
-          if (messages.isNotEmpty) ...[
+          if (displayItems.isNotEmpty) ...[
             IconButton(
               icon: Icon(
                 plainTextMode ? Icons.chat_bubble : Icons.text_snippet,
@@ -190,226 +187,31 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildMessage(BuildContext context, ChatMsg msg, ColorScheme cs) {
-    return switch (msg.role) {
-      MsgRole.user => _userBubble(context, msg, cs),
-      MsgRole.assistant => _assistantBubble(context, msg, cs),
-      MsgRole.toolCall => _toolCallCard(msg, cs),
-      MsgRole.toolResult => _toolResultCard(msg, cs),
-      MsgRole.error => _errorCard(msg, cs),
-      MsgRole.status => _statusLine(msg, cs),
-    };
+  Widget _buildDisplayItem(BuildContext context, ChatDisplayItem item, int index) {
+    if (item is MessageItem) {
+      return MessageBubble(
+        key: ValueKey('msg-${item.message.time.millisecondsSinceEpoch}'),
+        message: item.message,
+        onCopy: () => _handleCopyMessage(item.message),
+      );
+    } else if (item is ThinkingItem) {
+      return ThinkingFlowWidget(
+        key: ValueKey('thinking-${item.block.startTime.millisecondsSinceEpoch}'),
+        block: item.block,
+        onToggleExpansion: (_) => onToggleThinkingBlock(index),
+        onCopy: () => _handleCopyThinkingBlock(item.block),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
-  Widget _userBubble(BuildContext context, ChatMsg msg, ColorScheme cs) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header on the right (mirrored)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _formatMessageTime(msg.time),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '我',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(Icons.person, size: 16, color: cs.primary),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Bubble
-          Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            margin: const EdgeInsets.only(bottom: 8, left: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.primary, // 主题蓝色
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                textSelectionTheme: TextSelectionThemeData(
-                  selectionColor: Color(0xFF8B4513), // 深棕色选中背景
-                  selectionHandleColor: Color(0xFF8B4513),
-                ),
-              ),
-              child: SelectableText(
-                msg.text,
-                style: TextStyle(color: cs.onPrimary),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  void _handleCopyMessage(ChatMsg message) {
+    // 委托给 MessageBubble 处理
+    // 实际复制逻辑已经在 MessageBubble 中实现
   }
 
-  Widget _assistantBubble(BuildContext context, ChatMsg msg, ColorScheme cs) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header on the left
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.smart_toy, size: 16, color: cs.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Text(
-                '助手',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _formatMessageTime(msg.time),
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Bubble
-          Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            margin: const EdgeInsets.only(bottom: 8, right: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: SelectableText(msg.text),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _toolCallCard(ChatMsg msg, ColorScheme cs) {
-    final argsStr = msg.toolArgs != null
-        ? const JsonEncoder.withIndent('  ').convert(msg.toolArgs)
-        : '';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.tertiary.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ExpansionTile(
-        dense: true,
-        leading: Icon(Icons.build, size: 18, color: cs.tertiary),
-        title: SelectableText(
-          '工具调用: ${msg.toolName ?? "?"}',
-          style: TextStyle(fontSize: 13, color: cs.tertiary),
-        ),
-        children: [
-          if (argsStr.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              color: cs.surfaceContainerHighest,
-              child: SelectableText(
-                argsStr,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _toolResultCard(ChatMsg msg, ColorScheme cs) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.secondary.withValues(alpha: 0.3)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ExpansionTile(
-        dense: true,
-        initiallyExpanded: false,
-        leading: Icon(
-          Icons.check_circle_outline,
-          size: 18,
-          color: cs.secondary,
-        ),
-        title: SelectableText(
-          '工具结果: ${msg.toolName ?? ""}',
-          style: TextStyle(fontSize: 13, color: cs.secondary),
-        ),
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            color: cs.surfaceContainerHighest,
-            child: SelectableText(
-              msg.text,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _errorCard(ChatMsg msg, ColorScheme cs) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: cs.errorContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, size: 18, color: cs.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: SelectableText(
-              msg.text,
-              style: TextStyle(color: cs.onErrorContainer),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusLine(ChatMsg msg, ColorScheme cs) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Center(
-        child: SelectableText(
-          msg.text,
-          style: TextStyle(
-            fontSize: 11,
-            color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-          ),
-        ),
-      ),
-    );
+  void _handleCopyThinkingBlock(ThinkingBlock block) {
+    // 委托给 ThinkingFlowWidget 处理
+    // 实际复制逻辑已经在 ThinkingFlowWidget 中实现
   }
 }

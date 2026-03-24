@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:microscope_app/ui/chat/chat_models.dart';
+import 'package:microscope_app/ui/chat/chat_display_models.dart';
 import 'package:microscope_app/ui/chat/chat_panel.dart';
 
 void main() {
@@ -9,11 +10,13 @@ void main() {
       tester,
     ) async {
       // Arrange
-      final messages = [
-        ChatMsg(
-          role: MsgRole.assistant,
-          text: 'Hello',
-          time: DateTime(2026, 3, 23, 14, 30),
+      final displayItems = <ChatDisplayItem>[
+        MessageItem(
+          ChatMsg(
+            role: MsgRole.assistant,
+            text: 'Hello',
+            time: DateTime(2026, 3, 23, 14, 30),
+          ),
         ),
       ];
 
@@ -22,7 +25,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              messages: messages,
+              displayItems: displayItems,
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -32,6 +35,7 @@ void main() {
               onTogglePlainTextMode: () {},
               onCopyAllMessages: () {},
               onSendMessage: (_) {},
+              onToggleThinkingBlock: (_) {},
             ),
           ),
         ),
@@ -48,11 +52,13 @@ void main() {
       tester,
     ) async {
       // Arrange
-      final messages = [
-        ChatMsg(
-          role: MsgRole.user,
-          text: 'Hi',
-          time: DateTime(2026, 3, 23, 15, 45),
+      final displayItems = <ChatDisplayItem>[
+        MessageItem(
+          ChatMsg(
+            role: MsgRole.user,
+            text: 'Hi',
+            time: DateTime(2026, 3, 23, 15, 45),
+          ),
         ),
       ];
 
@@ -61,7 +67,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              messages: messages,
+              displayItems: displayItems,
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -71,6 +77,7 @@ void main() {
               onTogglePlainTextMode: () {},
               onCopyAllMessages: () {},
               onSendMessage: (_) {},
+              onToggleThinkingBlock: (_) {},
             ),
           ),
         ),

@@ -124,10 +124,10 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
               borderRadius: BorderRadius.circular(12),
               border: widget.block.isActive
                   ? Border.all(
-                      color: cs.primary.withOpacity(0.5),
+                      color: cs.primary.withValues(alpha: 0.5),
                       width: 2,
                     )
-                  : Border.all(color: cs.tertiary.withOpacity(0.3)),
+                  : Border.all(color: cs.tertiary.withValues(alpha: 0.3)),
             ),
             child: child,
           );

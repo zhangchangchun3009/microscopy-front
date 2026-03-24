@@ -42,8 +42,13 @@ class _MessageBubbleState extends State<MessageBubble> {
 
     if (widget.message.role == MsgRole.user) {
       return _buildUserBubble(cs);
-    } else {
+    } else if (widget.message.role == MsgRole.assistant) {
       return _buildAssistantBubble(cs);
+    } else if (widget.message.role == MsgRole.status) {
+      return _buildStatusLine(cs);
+    } else {
+      // For other message types (toolCall, toolResult, error), show as simple cards
+      return _buildSimpleCard(cs);
     }
   }
 
@@ -61,7 +66,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 _formatTime(widget.message.time),
                 style: TextStyle(
                   fontSize: 11,
-                  color: cs.onSurfaceVariant.withOpacity(0.7),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
               ),
               const SizedBox(width: 4),
@@ -129,7 +134,7 @@ class _MessageBubbleState extends State<MessageBubble> {
                 _formatTime(widget.message.time),
                 style: TextStyle(
                   fontSize: 11,
-                  color: cs.onSurfaceVariant.withOpacity(0.7),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -176,5 +181,58 @@ class _MessageBubbleState extends State<MessageBubble> {
         '${time.day.toString().padLeft(2, '0')} '
         '${time.hour.toString().padLeft(2, '0')}:'
         '${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildStatusLine(ColorScheme cs) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Center(
+        child: SelectableText(
+          widget.message.text,
+          style: TextStyle(
+            fontSize: 11,
+            color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSimpleCard(ColorScheme cs) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: widget.message.role == MsgRole.error
+            ? cs.errorContainer
+            : cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            widget.message.role == MsgRole.error
+                ? Icons.error_outline
+                : Icons.info_outline,
+            size: 18,
+            color: widget.message.role == MsgRole.error
+                ? cs.error
+                : cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SelectableText(
+              widget.message.text,
+              style: TextStyle(
+                color: widget.message.role == MsgRole.error
+                    ? cs.onErrorContainer
+                    : cs.onSurface,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -237,35 +237,7 @@ class ChatSessionController extends ChangeNotifier {
     _displayItems.add(MessageItem(statusMsg));
   }
 
-  /// 格式化思维块预览文本（4-5行）
-  String _formatBlockPreview(ThinkingBlock block) {
-    final lines = <String>[];
-    int lineCount = 0;
-
-    for (final msg in block.messages) {
-      if (lineCount >= previewLineCount) break;
-
-      final prefix = switch (msg.role) {
-        MsgRole.toolCall => '🔧 ${msg.toolName ?? "工具"}',
-        MsgRole.toolResult => '✓ ${msg.toolName ?? "结果"}',
-        MsgRole.error => '❌ 错误',
-        MsgRole.status => 'ℹ️ ${msg.text}',
-        _ => '',
-      };
-
-      if (prefix.isNotEmpty) {
-        lines.add(prefix);
-        lineCount++;
-      }
-    }
-
-    if (block.messages.length > previewLineCount) {
-      lines.add('... 还有 ${block.messages.length - previewLineCount} 条消息');
-    }
-
-    return lines.join('\n');
-  }
-
+  
   /// 判断是否为中间消息（应放入思维块）
   bool _isIntermediateMessage(ChatMsg msg) {
     return msg.role == MsgRole.toolCall ||

@@ -230,7 +230,7 @@ class _HomePageState extends State<HomePage> {
           onToggleLive: () => setState(() => _isVideoLive = !_isVideoLive),
         ),
         rightChatPane: ChatPanel(
-          messages: _chatSession.messages,
+          displayItems: _chatSession.displayItems,
           inputController: _inputCtrl,
           scrollController: _scrollCtrl,
           plainTextMode: _plainTextMode,
@@ -241,6 +241,7 @@ class _HomePageState extends State<HomePage> {
               setState(() => _plainTextMode = !_plainTextMode),
           onCopyAllMessages: _copyAllMessages,
           onSendMessage: _sendMessage,
+          onToggleThinkingBlock: _chatSession.toggleThinkingBlock,
         ),
       ),
     );

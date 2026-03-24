@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:microscope_app/ui/chat/chat_session_controller.dart';
 import 'package:microscope_app/ui/chat/chat_models.dart';
 import 'package:microscope_app/ui/chat/chat_display_models.dart';

@@ -24,14 +24,13 @@ void main() {
 
     testWidgets('应该显示复制按钮', (tester) async {
       final msg = ChatMsg(role: MsgRole.user, text: '测试');
-      bool copyCalled = false;
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: MessageBubble(
               message: msg,
-              onCopy: () => copyCalled = true,
+              onCopy: () {},
             ),
           ),
         ),
