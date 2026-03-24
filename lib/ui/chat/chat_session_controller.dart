@@ -131,21 +131,38 @@ class ChatSessionController extends ChangeNotifier {
     }
   }
 
-  /// 将全部消息格式化为可复制文本。
+  /// 将全部显示项格式化为可复制文本。
   String formatMessagesForCopy() {
     final sb = StringBuffer();
-    for (final m in _messages) {
-      final prefix = switch (m.role) {
-        MsgRole.user => '[用户]',
-        MsgRole.assistant => '[助手]',
-        MsgRole.toolCall => '[工具调用: ${m.toolName ?? "?"}]',
-        MsgRole.toolResult => '[工具结果: ${m.toolName ?? ""}]',
-        MsgRole.error => '[错误]',
-        MsgRole.status => '[状态]',
-      };
-      sb.writeln('$prefix ${m.text}');
-      if (m.toolArgs != null && m.toolArgs!.isNotEmpty) {
-        sb.writeln(const JsonEncoder.withIndent('  ').convert(m.toolArgs));
+    for (final item in _displayItems) {
+      if (item is MessageItem) {
+        final m = item.message;
+        final prefix = switch (m.role) {
+          MsgRole.user => '[用户]',
+          MsgRole.assistant => '[助手]',
+          MsgRole.toolCall => '[工具调用: ${m.toolName ?? "?"}]',
+          MsgRole.toolResult => '[工具结果: ${m.toolName ?? ""}]',
+          MsgRole.error => '[错误]',
+          MsgRole.status => '[状态]',
+        };
+        sb.writeln('$prefix ${m.text}');
+        if (m.toolArgs != null && m.toolArgs!.isNotEmpty) {
+          sb.writeln(const JsonEncoder.withIndent('  ').convert(m.toolArgs));
+        }
+      } else if (item is ThinkingItem) {
+        sb.writeln('[思考过程]');
+        for (final msg in item.block.messages) {
+          final prefix = switch (msg.role) {
+            MsgRole.toolCall => '  🔧 ${msg.toolName ?? "工具"}',
+            MsgRole.toolResult => '  ✓ ${msg.toolName ?? "结果"}',
+            MsgRole.error => '  ❌',
+            MsgRole.status => '  ℹ️',
+            _ => '',
+          };
+          if (prefix.isNotEmpty) {
+            sb.writeln('$prefix ${msg.text}');
+          }
+        }
       }
     }
     return sb.toString();
@@ -155,24 +172,31 @@ class ChatSessionController extends ChangeNotifier {
     if (raw is! String) {
       return;
     }
-    final result = ChatProtocolMapper.applyEvent(
-      raw: raw,
-      chunkBuffer: _chunkBuffer,
-      agentBusy: _agentBusy,
-      lastMessageRole: _messages.isNotEmpty ? _messages.last.role : null,
-    );
 
-    // 将消息添加到原始列表（保持兼容性）
-    _messages.addAll(result.messages);
+    try {
+      final result = ChatProtocolMapper.applyEvent(
+        raw: raw,
+        chunkBuffer: _chunkBuffer,
+        agentBusy: _agentBusy,
+        lastMessageRole: _messages.isNotEmpty ? _messages.last.role : null,
+      );
 
-    // 分组逻辑：处理消息分组
-    _processMessageGrouping(result.messages);
+      // 将消息添加到原始列表（保持兼容性）
+      _messages.addAll(result.messages);
 
-    // 更新活动状态
-    _agentBusy = result.agentBusy;
-    _updateCurrentBlockActivity();
+      // 分组逻辑：处理消息分组
+      _processMessageGrouping(result.messages);
 
-    notifyListeners();
+      // 更新活动状态
+      _agentBusy = result.agentBusy;
+      _updateCurrentBlockActivity();
+
+      notifyListeners();
+    } catch (e, stack) {
+      // 记录错误但继续运行
+      debugPrint('Error processing WebSocket message: $e');
+      debugPrint(stack.toString());
+    }
   }
 
   /// 处理消息分组逻辑
@@ -200,12 +224,17 @@ class ChatSessionController extends ChangeNotifier {
       if (!_agentBusy && _currentBlock!.messages.isNotEmpty) {
         _displayItems.add(ThinkingItem(_currentBlock!));
         _currentBlock = null;
+      } else if (!_agentBusy && _currentBlock!.messages.isEmpty) {
+        // 不要添加空的思维块
+        _currentBlock = null;
       }
     }
   }
 
   void _appendStatus(String msg) {
-    _messages.add(ChatMsg(role: MsgRole.status, text: msg));
+    final statusMsg = ChatMsg(role: MsgRole.status, text: msg);
+    _messages.add(statusMsg);
+    _displayItems.add(MessageItem(statusMsg));
   }
 
   /// 格式化思维块预览文本（4-5行）
