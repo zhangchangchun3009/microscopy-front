@@ -202,7 +202,15 @@ class ChatSessionController extends ChangeNotifier {
   /// 处理消息分组逻辑
   void _processMessageGrouping(List<ChatMsg> messages) {
     for (final msg in messages) {
-      if (_currentBlock != null && _isIntermediateMessage(msg)) {
+      if (_isIntermediateMessage(msg)) {
+        // 如果当前没有思维块，创建一个新的
+        if (_currentBlock == null) {
+          _currentBlock = ThinkingBlock(
+            messages: [],
+            startTime: DateTime.now(),
+            isActive: _agentBusy,
+          );
+        }
         _currentBlock!.addMessage(msg);
       } else if (msg.role == MsgRole.assistant) {
         // 关闭当前思维块并添加助手消息
