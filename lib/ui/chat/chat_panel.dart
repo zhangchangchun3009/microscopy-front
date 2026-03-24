@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'chat_models.dart';
+import 'chat_turn_models.dart';
+import 'turn_bubble.dart';
 
 /// Formats message timestamp as "MM-dd HH:mm".
 String _formatMessageTime(DateTime time) {
@@ -19,13 +22,15 @@ class ChatPanel extends StatelessWidget {
   /// 创建聊天面板。
   ///
   /// 主要参数：
-  /// - [messages] 当前对话消息列表；
+  /// - [messages] 当前对话消息列表（向后兼容，已废弃）；
+  /// - [turns] 新的对话回合列表（使用 ChatTurn 模型）；
   /// - [inputController]/[scrollController] 由上层状态持有，确保折叠/展开后状态连续；
   /// - [plainTextMode] 控制气泡视图与纯文本视图切换；
   /// - [onSendMessage]/[onTogglePlainTextMode]/[onCopyAllMessages] 由上层注入行为。
   const ChatPanel({
     super.key,
     required this.messages,
+    required this.turns,
     required this.inputController,
     required this.scrollController,
     required this.plainTextMode,
@@ -37,8 +42,11 @@ class ChatPanel extends StatelessWidget {
     required this.onSendMessage,
   });
 
-  /// 对话消息列表。
+  /// 对话消息列表（向后兼容，已废弃）。
   final List<ChatMsg> messages;
+
+  /// 对话回合列表（新模型）。
+  final List<ChatTurn> turns;
 
   /// 输入框控制器。
   final TextEditingController inputController;
@@ -74,7 +82,7 @@ class ChatPanel extends StatelessWidget {
       children: [
         _buildHeader(cs),
         Expanded(
-          child: messages.isEmpty
+          child: turns.isEmpty
               ? Center(
                   child: Text(
                     '发送消息开始对话',
@@ -87,9 +95,14 @@ class ChatPanel extends StatelessWidget {
                   key: const ValueKey('chat-message-list'),
                   controller: scrollController,
                   padding: const EdgeInsets.all(12),
-                  itemCount: messages.length,
-                  itemBuilder: (context, i) =>
-                      _buildMessage(context, messages[i], cs),
+                  itemCount: turns.length,
+                  itemBuilder: (context, i) {
+                    final turn = turns[i];
+                    return TurnBubble(
+                      turn: turn,
+                      onCopy: () => _copyTurn(turn),
+                    );
+                  },
                 ),
         ),
         _buildComposer(cs),
@@ -106,7 +119,7 @@ class ChatPanel extends StatelessWidget {
           const Icon(Icons.chat, size: 18),
           const SizedBox(width: 8),
           const Expanded(child: Text('Agent 对话')),
-          if (messages.isNotEmpty) ...[
+          if (turns.isNotEmpty) ...[
             IconButton(
               icon: Icon(
                 plainTextMode ? Icons.chat_bubble : Icons.text_snippet,
@@ -411,5 +424,15 @@ class ChatPanel extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// 复制单个回合的内容。
+  void _copyTurn(ChatTurn turn) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: turn.finalContent));
+      // 可以扩展为显示提示
+    } catch (_) {
+      // 静默失败
+    }
   }
 }

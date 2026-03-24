@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:microscope_app/ui/chat/chat_models.dart';
 import 'package:microscope_app/ui/chat/chat_panel.dart';
+import 'package:microscope_app/ui/chat/chat_turn_models.dart';
 
 void main() {
   group('ChatPanel with message headers', () {
@@ -23,6 +24,7 @@ void main() {
           home: Scaffold(
             body: ChatPanel(
               messages: messages,
+              turns: [], // Empty for legacy test
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -62,6 +64,7 @@ void main() {
           home: Scaffold(
             body: ChatPanel(
               messages: messages,
+              turns: [], // Empty for legacy test
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
