@@ -5,11 +5,15 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'chat_models.dart';
 import 'chat_protocol_mapper.dart';
+import 'chat_display_models.dart';
 
 /// 聊天会话控制器，封装连接生命周期、消息收发与协议解析。
 ///
 /// 该控制器不直接依赖 Widget 树，通过 [ChangeNotifier] 向外暴露状态变更。
 class ChatSessionController extends ChangeNotifier {
+  /// 思维块预览文本的最大行数
+  static const int previewLineCount = 5;
+
   final List<ChatMsg> _messages = [];
   WebSocketChannel? _channel;
   StreamSubscription? _wsSub;
@@ -18,8 +22,17 @@ class ChatSessionController extends ChangeNotifier {
   bool _wsConnected = false;
   bool _agentBusy = false;
 
+  // 新增：显示项列表
+  final List<ChatDisplayItem> _displayItems = [];
+
+  // 新增：当前活动的思维块
+  ThinkingBlock? _currentBlock;
+
   /// 当前消息列表（只读视图）。
   List<ChatMsg> get messages => List.unmodifiable(_messages);
+
+  /// 显示项列表（只读视图），包含消息项和思维块项
+  List<ChatDisplayItem> get displayItems => List.unmodifiable(_displayItems);
 
   /// WebSocket 是否已连接。
   bool get wsConnected => _wsConnected;
@@ -71,6 +84,7 @@ class ChatSessionController extends ChangeNotifier {
     _channel = null;
     _wsConnected = false;
     _agentBusy = false;
+    _currentBlock = null;
     notifyListeners();
   }
 
@@ -83,7 +97,17 @@ class ChatSessionController extends ChangeNotifier {
     if (normalized.isEmpty || !_wsConnected) {
       return;
     }
+    // 添加用户消息到原始消息列表
     _messages.add(ChatMsg(role: MsgRole.user, text: normalized));
+    _displayItems.add(MessageItem(_messages.last));
+
+    // 创建新的思维块
+    _currentBlock = ThinkingBlock(
+      messages: [],
+      startTime: DateTime.now(),
+      isActive: true,
+    );
+
     _agentBusy = true;
     _channel?.sink.add(jsonEncode({'type': 'message', 'content': normalized}));
     notifyListeners();
@@ -93,6 +117,18 @@ class ChatSessionController extends ChangeNotifier {
   void appendStatus(String msg) {
     _appendStatus(msg);
     notifyListeners();
+  }
+
+  /// 切换思维块展开状态
+  void toggleThinkingBlock(int index) {
+    if (index < 0 || index >= _displayItems.length) {
+      return;
+    }
+    final item = _displayItems[index];
+    if (item is ThinkingItem) {
+      item.block.isExpanded = !item.block.isExpanded;
+      notifyListeners();
+    }
   }
 
   /// 将全部消息格式化为可复制文本。
@@ -125,13 +161,88 @@ class ChatSessionController extends ChangeNotifier {
       agentBusy: _agentBusy,
       lastMessageRole: _messages.isNotEmpty ? _messages.last.role : null,
     );
+
+    // 将消息添加到原始列表（保持兼容性）
     _messages.addAll(result.messages);
+
+    // 分组逻辑：处理消息分组
+    _processMessageGrouping(result.messages);
+
+    // 更新活动状态
     _agentBusy = result.agentBusy;
+    _updateCurrentBlockActivity();
+
     notifyListeners();
+  }
+
+  /// 处理消息分组逻辑
+  void _processMessageGrouping(List<ChatMsg> messages) {
+    for (final msg in messages) {
+      if (_currentBlock != null && _isIntermediateMessage(msg)) {
+        _currentBlock!.addMessage(msg);
+      } else if (msg.role == MsgRole.assistant) {
+        // 关闭当前思维块并添加助手消息
+        if (_currentBlock != null && _currentBlock!.messages.isNotEmpty) {
+          _displayItems.add(ThinkingItem(_currentBlock!));
+        }
+        _displayItems.add(MessageItem(msg));
+        _currentBlock = null;
+      }
+    }
+  }
+
+  /// 更新当前思维块的活动状态
+  void _updateCurrentBlockActivity() {
+    if (_currentBlock != null) {
+      _currentBlock!.isActive = _agentBusy;
+
+      // 如果活动结束且有内容，添加到显示项
+      if (!_agentBusy && _currentBlock!.messages.isNotEmpty) {
+        _displayItems.add(ThinkingItem(_currentBlock!));
+        _currentBlock = null;
+      }
+    }
   }
 
   void _appendStatus(String msg) {
     _messages.add(ChatMsg(role: MsgRole.status, text: msg));
+  }
+
+  /// 格式化思维块预览文本（4-5行）
+  String _formatBlockPreview(ThinkingBlock block) {
+    final lines = <String>[];
+    int lineCount = 0;
+
+    for (final msg in block.messages) {
+      if (lineCount >= previewLineCount) break;
+
+      final prefix = switch (msg.role) {
+        MsgRole.toolCall => '🔧 ${msg.toolName ?? "工具"}',
+        MsgRole.toolResult => '✓ ${msg.toolName ?? "结果"}',
+        MsgRole.error => '❌ 错误',
+        MsgRole.status => 'ℹ️ ${msg.text}',
+        _ => '',
+      };
+
+      if (prefix.isNotEmpty) {
+        lines.add(prefix);
+        lineCount++;
+      }
+    }
+
+    if (block.messages.length > previewLineCount) {
+      lines.add('... 还有 ${block.messages.length - previewLineCount} 条消息');
+    }
+
+    return lines.join('\n');
+  }
+
+  /// 判断是否为中间消息（应放入思维块）
+  bool _isIntermediateMessage(ChatMsg msg) {
+    return msg.role == MsgRole.toolCall ||
+           msg.role == MsgRole.toolResult ||
+           msg.role == MsgRole.error ||
+           msg.role == MsgRole.status;
   }
 
   @override
