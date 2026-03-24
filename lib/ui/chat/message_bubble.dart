@@ -84,26 +84,29 @@ class _MessageBubbleState extends State<MessageBubble> {
             ],
           ),
           const SizedBox(height: 4),
-          Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            margin: const EdgeInsets.only(bottom: 8, left: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.primary,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: SelectableText(
-                    widget.message.text,
-                    style: TextStyle(color: cs.onPrimary),
-                  ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                constraints: const BoxConstraints(maxWidth: 500),
+                margin: const EdgeInsets.only(bottom: 8, left: 48),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                _buildCopyButton(cs),
-              ],
-            ),
+                child: SelectableText(
+                  widget.message.text,
+                  style: TextStyle(color: cs.onPrimary),
+                ),
+              ),
+              // 叠加的复制按钮 - 右上角
+              Positioned(
+                top: 8,
+                right: 8,
+                child: _buildCopyButton(cs),
+              ),
+            ],
           ),
         ],
       ),
@@ -142,23 +145,26 @@ class _MessageBubbleState extends State<MessageBubble> {
             ],
           ),
           const SizedBox(height: 4),
-          Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            margin: const EdgeInsets.only(bottom: 8, right: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: SelectableText(widget.message.text),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                constraints: const BoxConstraints(maxWidth: 500),
+                margin: const EdgeInsets.only(bottom: 8, right: 48),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                _buildCopyButton(cs),
-              ],
-            ),
+                child: SelectableText(widget.message.text),
+              ),
+              // 叠加的复制按钮 - 右上角
+              Positioned(
+                top: 8,
+                right: 8,
+                child: _buildCopyButton(cs),
+              ),
+            ],
           ),
         ],
       ),
@@ -171,10 +177,18 @@ class _MessageBubbleState extends State<MessageBubble> {
       message: _showCopiedFeedback ? '已复制!' : '复制',
       waitDuration: Duration.zero,
       child: IconButton(
-        icon: const Icon(Icons.copy, size: 16),
+        icon: Icon(
+          _showCopiedFeedback ? Icons.check : Icons.copy,
+          size: 16,
+          color: cs.onSurfaceVariant.withOpacity(0.7),
+        ),
         onPressed: _handleCopy,
-        padding: const EdgeInsets.all(4),
+        padding: EdgeInsets.zero,
         constraints: const BoxConstraints(),
+        style: IconButton.styleFrom(
+          backgroundColor: cs.surfaceContainerHighest.withOpacity(0.9),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
     );
   }
