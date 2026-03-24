@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'chat_models.dart';
 
 /// 协议事件映射结果。
