@@ -56,7 +56,14 @@ class ChatProtocolMapper {
 
     switch (type) {
       case 'chunk':
-        chunkBuffer.write(data['content'] ?? '');
+        final content = data['content'] ?? '';
+        chunkBuffer.write(content);
+
+        // 通过文本模式识别特殊消息类型
+        final categorized = _categorizeMessageByPattern(content);
+        if (categorized != null) {
+          mappedMessages.add(categorized);
+        }
         break;
       case 'tool_call':
         flushChunks();
@@ -110,5 +117,44 @@ class ChatProtocolMapper {
       messages: mappedMessages,
       agentBusy: nextBusy,
     );
+  }
+
+  /// 通过文本模式识别特殊消息类型（用于服务器未标记类型的场景）
+  static ChatMsg? _categorizeMessageByPattern(String text) {
+    // 思考状态
+    if (text.contains('🤔 Thinking') || text.contains('🤔')) {
+      return ChatMsg(role: MsgRole.status, text: text);
+    }
+
+    // 工具调用开始
+    if (text.startsWith('⏳')) {
+      // 提取工具名称和参数
+      final parts = text.substring(2).trim().split(':');
+      final toolName = parts.isNotEmpty ? parts[0].trim() : '';
+      return ChatMsg(
+        role: MsgRole.toolCall,
+        text: text,
+        toolName: toolName.isNotEmpty ? toolName : null,
+      );
+    }
+
+    // 工具调用完成
+    if (text.startsWith('✓') || text.startsWith('✅')) {
+      final parts = text.substring(1).trim().split(' ');
+      final toolName = parts.isNotEmpty ? parts[0].trim() : '';
+      return ChatMsg(
+        role: MsgRole.toolResult,
+        text: text,
+        toolName: toolName.isNotEmpty ? toolName : null,
+      );
+    }
+
+    // 工具调用统计
+    if (text.contains('Got') && text.contains('tool call(s)')) {
+      return ChatMsg(role: MsgRole.status, text: text);
+    }
+
+    // 默认返回 null，让消息保持原有类型
+    return null;
   }
 }
