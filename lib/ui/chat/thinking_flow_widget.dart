@@ -21,8 +21,41 @@ class ThinkingFlowWidget extends StatefulWidget {
   State<ThinkingFlowWidget> createState() => _ThinkingFlowWidgetState();
 }
 
-class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget> {
+class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _shimmerController;
   bool _showCopiedFeedback = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+
+    if (widget.block.isActive) {
+      _shimmerController.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(ThinkingFlowWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.block.isActive != oldWidget.block.isActive) {
+      if (widget.block.isActive) {
+        _shimmerController.repeat();
+      } else {
+        _shimmerController.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
 
   void _handleCopy() async {
     try {
@@ -81,21 +114,34 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.tertiary.withOpacity(0.3)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(cs),
-          if (widget.block.isExpanded)
-            _buildExpandedContent(cs)
-          else
-            _buildPreview(cs),
-        ],
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _shimmerController,
+        builder: (context, child) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: widget.block.isActive
+                  ? Border.all(
+                      color: cs.primary.withOpacity(0.5),
+                      width: 2,
+                    )
+                  : Border.all(color: cs.tertiary.withOpacity(0.3)),
+            ),
+            child: child,
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(cs),
+            if (widget.block.isExpanded)
+              _buildExpandedContent(cs)
+            else
+              _buildPreview(cs),
+          ],
+        ),
       ),
     );
   }

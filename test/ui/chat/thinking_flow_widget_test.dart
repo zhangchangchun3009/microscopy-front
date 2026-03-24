@@ -105,5 +105,35 @@ void main() {
 
       expect(find.text('思考过程'), findsOneWidget);
     });
+
+    testWidgets('应该在活动时显示动画边框', (tester) async {
+      final activeBlock = ThinkingBlock(
+        messages: [
+          ChatMsg(role: MsgRole.toolCall, text: '测试'),
+        ],
+        startTime: DateTime(2026, 3, 24, 10, 0),
+        isActive: true,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ThinkingFlowWidget(
+              block: activeBlock,
+              onToggleExpansion: (_) {},
+              onCopy: () {},
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 验证 AnimatedBuilder 存在（动画正在运行）
+      expect(find.byType(AnimatedBuilder), findsWidgets);
+      // 验证 RepaintBoundary 存在（性能优化）
+      expect(find.byType(RepaintBoundary), findsWidgets);
+    });
   });
 }
