@@ -75,6 +75,7 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
     }
   }
 
+  /// 构建思维块预览文本（仅显示图标和简短描述）
   String _buildPreviewText() {
     final lines = <String>[];
     for (final msg in widget.block.messages) {
@@ -92,6 +93,7 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
     return lines.join('\n');
   }
 
+  /// 构建思维块完整文本（包含所有消息详情）
   String _buildFullText() {
     final buffer = StringBuffer();
     for (final msg in widget.block.messages) {
@@ -146,6 +148,7 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
     );
   }
 
+  /// 构建思维块头部（可点击展开/折叠）
   Widget _buildHeader(ColorScheme cs) {
     return GestureDetector(
       onTap: () => widget.onToggleExpansion(!widget.block.isExpanded),
@@ -184,6 +187,7 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
     );
   }
 
+  /// 构建思维块预览内容（折叠状态）
   Widget _buildPreview(ColorScheme cs) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -207,6 +211,7 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
     );
   }
 
+  /// 构建思维块展开内容（显示所有消息）
   Widget _buildExpandedContent(ColorScheme cs) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -221,6 +226,7 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
     );
   }
 
+  /// 构建单条消息项（带图标和文本）
   Widget _buildMessageItem(ChatMsg msg, ColorScheme cs) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -250,6 +256,7 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
     );
   }
 
+  /// 构建复制按钮，带复制反馈提示
   Widget _buildCopyButton(ColorScheme cs) {
     return Tooltip(
       message: _showCopiedFeedback ? '已复制!' : '复制',

@@ -94,6 +94,7 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
+  /// 构建聊天面板头部（包含标题、视图切换和复制按钮）
   Widget _buildHeader(ColorScheme cs) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -129,6 +130,7 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
+  /// 构建消息输入区域（文本框 + 发送按钮）
   Widget _buildComposer(ColorScheme cs) {
     return Container(
       padding: const EdgeInsets.all(10),
@@ -170,6 +172,7 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
+  /// 构建纯文本视图（整个对话为单一可选中块）
   Widget _buildPlainTextView(ColorScheme cs) {
     return SingleChildScrollView(
       key: const ValueKey('chat-message-list'),
@@ -187,6 +190,7 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
+  /// 根据显示项类型构建相应的 Widget（消息或思维块）
   Widget _buildDisplayItem(BuildContext context, ChatDisplayItem item, int index) {
     if (item is MessageItem) {
       return MessageBubble(

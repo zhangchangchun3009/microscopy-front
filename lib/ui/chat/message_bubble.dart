@@ -52,6 +52,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     }
   }
 
+  /// 构建用户消息气泡（右侧对齐，蓝色背景）
   Widget _buildUserBubble(ColorScheme cs) {
     return Align(
       alignment: Alignment.centerRight,
@@ -109,6 +110,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  /// 构建助手消息气泡（左侧对齐，灰色背景）
   Widget _buildAssistantBubble(ColorScheme cs) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -163,6 +165,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  /// 构建复制按钮，带复制反馈提示
   Widget _buildCopyButton(ColorScheme cs) {
     return Tooltip(
       message: _showCopiedFeedback ? '已复制!' : '复制',
@@ -176,6 +179,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  /// 格式化消息时间戳为 MM-DD HH:MM 格式
   String _formatTime(DateTime time) {
     return '${time.month.toString().padLeft(2, '0')}-'
         '${time.day.toString().padLeft(2, '0')} '
@@ -183,6 +187,7 @@ class _MessageBubbleState extends State<MessageBubble> {
         '${time.minute.toString().padLeft(2, '0')}';
   }
 
+  /// 构建状态消息行（居中，小字，灰色）
   Widget _buildStatusLine(ColorScheme cs) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -198,6 +203,7 @@ class _MessageBubbleState extends State<MessageBubble> {
     );
   }
 
+  /// 构建简单卡片（工具调用、结果、错误等消息）
   Widget _buildSimpleCard(ColorScheme cs) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
