@@ -185,30 +185,38 @@ class _ThinkingFlowWidgetState extends State<ThinkingFlowWidget>
   }
 
   Widget _buildPreview(ColorScheme cs) {
-    return GestureDetector(
-      onTap: () => widget.onToggleExpansion(!widget.block.isExpanded),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        constraints: const BoxConstraints(minHeight: 80),
-        child: SelectableText(
-          _buildPreviewText(),
-          style: TextStyle(
-            fontSize: 12,
-            color: cs.onSurfaceVariant,
-            fontFamily: 'monospace',
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      child: GestureDetector(
+        onTap: () => widget.onToggleExpansion(!widget.block.isExpanded),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          constraints: const BoxConstraints(minHeight: 80),
+          child: SelectableText(
+            _buildPreviewText(),
+            style: TextStyle(
+              fontSize: 12,
+              color: cs.onSurfaceVariant,
+              fontFamily: 'monospace',
+            ),
+            maxLines: 5,
           ),
-          maxLines: 5,
         ),
       ),
     );
   }
 
   Widget _buildExpandedContent(ColorScheme cs) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: widget.block.messages.map((msg) => _buildMessageItem(msg, cs)).toList(),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: widget.block.messages.map((msg) => _buildMessageItem(msg, cs)).toList(),
+        ),
       ),
     );
   }
