@@ -78,11 +78,14 @@ class ChatPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final useTurns = turns.isNotEmpty;
+    final displayList = useTurns ? turns : messages;
+
     return Column(
       children: [
         _buildHeader(cs),
         Expanded(
-          child: turns.isEmpty
+          child: displayList.isEmpty
               ? Center(
                   child: Text(
                     '发送消息开始对话',
@@ -91,19 +94,28 @@ class ChatPanel extends StatelessWidget {
                 )
               : plainTextMode
               ? _buildPlainTextView(cs)
-              : ListView.builder(
-                  key: const ValueKey('chat-message-list'),
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: turns.length,
-                  itemBuilder: (context, i) {
-                    final turn = turns[i];
-                    return TurnBubble(
-                      turn: turn,
-                      onCopy: () => _copyTurn(turn),
-                    );
-                  },
-                ),
+              : useTurns
+                  ? ListView.builder(
+                      key: const ValueKey('chat-message-list'),
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: turns.length,
+                      itemBuilder: (context, i) {
+                        final turn = turns[i];
+                        return TurnBubble(
+                          turn: turn,
+                          onCopy: () => _copyTurn(turn),
+                        );
+                      },
+                    )
+                  : ListView.builder(
+                      key: const ValueKey('chat-message-list'),
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: messages.length,
+                      itemBuilder: (context, i) =>
+                          _buildMessage(context, messages[i], cs),
+                    ),
         ),
         _buildComposer(cs),
       ],
