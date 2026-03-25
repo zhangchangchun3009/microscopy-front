@@ -60,5 +60,29 @@ void main() {
       expect(find.byIcon(Icons.person), findsOneWidget);
       expect(find.text('我'), findsOneWidget);
     });
+
+    testWidgets('输入区提供可拖动调整高度的手柄', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatPanel(
+              turns: const [],
+              inputController: TextEditingController(),
+              scrollController: ScrollController(),
+              plainTextMode: false,
+              agentBusy: false,
+              wsConnected: true,
+              plainTextTranscript: '',
+              onTogglePlainTextMode: () {},
+              onCopyAllMessages: () {},
+              onSendMessage: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('chat-composer-resize-handle')), findsOneWidget);
+      expect(find.byKey(const ValueKey('chat-input-field')), findsOneWidget);
+    });
   });
 }

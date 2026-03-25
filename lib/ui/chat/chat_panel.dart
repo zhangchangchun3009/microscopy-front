@@ -85,7 +85,13 @@ class ChatPanel extends StatelessWidget {
                   ),
                 ),
         ),
-        _buildComposer(cs),
+        _ResizableChatComposer(
+          colorScheme: cs,
+          inputController: inputController,
+          wsConnected: wsConnected,
+          agentBusy: agentBusy,
+          onSendMessage: onSendMessage,
+        ),
       ],
     );
   }
@@ -126,48 +132,6 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
-  /// 构建消息输入区域（文本框 + 发送按钮）
-  Widget _buildComposer(ColorScheme cs) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        border: Border(top: BorderSide(color: cs.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              key: const ValueKey('chat-input-field'),
-              controller: inputController,
-              decoration: InputDecoration(
-                hintText: '输入指令…',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                isDense: true,
-              ),
-              onSubmitted: onSendMessage,
-              textInputAction: TextInputAction.send,
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            onPressed: wsConnected && !agentBusy
-                ? () => onSendMessage(inputController.text)
-                : null,
-            icon: const Icon(Icons.send),
-            tooltip: '发送',
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 构建纯文本视图（整个对话为单一可选中块）
   Widget _buildPlainTextView(ColorScheme cs) {
     return SingleChildScrollView(
@@ -186,4 +150,132 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
+}
+
+/// 可垂直拖动调整高度的输入区：多行编辑 + 顶部拖拽手柄。
+///
+/// - 初始高度约两行文本，最小约一行，最大避免占满屏幕；
+/// - 多行时由发送按钮发送，回车插入换行。
+class _ResizableChatComposer extends StatefulWidget {
+  const _ResizableChatComposer({
+    required this.colorScheme,
+    required this.inputController,
+    required this.wsConnected,
+    required this.agentBusy,
+    required this.onSendMessage,
+  });
+
+  final ColorScheme colorScheme;
+  final TextEditingController inputController;
+  final bool wsConnected;
+  final bool agentBusy;
+  final ValueChanged<String> onSendMessage;
+
+  @override
+  State<_ResizableChatComposer> createState() => _ResizableChatComposerState();
+}
+
+class _ResizableChatComposerState extends State<_ResizableChatComposer> {
+  static const double _minHeight = 52;
+  static const double _maxHeight = 320;
+  static const double _initialHeight = 88;
+
+  late double _editorHeight;
+
+  @override
+  void initState() {
+    super.initState();
+    _editorHeight = _initialHeight;
+  }
+
+  void _onResizeDragUpdate(DragUpdateDetails details) {
+    // 手指/光标向上拖（delta.dy < 0）增大输入区高度
+    setState(() {
+      _editorHeight = (_editorHeight - details.delta.dy).clamp(_minHeight, _maxHeight);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        border: Border(top: BorderSide(color: cs.outlineVariant)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeUpDown,
+            child: GestureDetector(
+              key: const ValueKey('chat-composer-resize-handle'),
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragUpdate: _onResizeDragUpdate,
+              child: Tooltip(
+                message: '上下拖动调整输入区高度',
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: _editorHeight,
+                    child: TextField(
+                      key: const ValueKey('chat-input-field'),
+                      controller: widget.inputController,
+                      expands: true,
+                      maxLines: null,
+                      minLines: null,
+                      keyboardType: TextInputType.multiline,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: InputDecoration(
+                        hintText: '输入指令…',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        alignLabelWithHint: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        isDense: true,
+                      ),
+                      textInputAction: TextInputAction.newline,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: widget.wsConnected && !widget.agentBusy
+                      ? () => widget.onSendMessage(widget.inputController.text)
+                      : null,
+                  icon: const Icon(Icons.send),
+                  tooltip: '发送',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
