@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'chat_models.dart';
-import 'chat_display_models.dart';
-import 'message_bubble.dart';
-import 'thinking_flow_widget.dart';
+import 'chat_turn_models.dart';
+import 'turn_bubble.dart';
 
 /// 右侧聊天面板组件。
 ///
@@ -12,13 +10,13 @@ class ChatPanel extends StatelessWidget {
   /// 创建聊天面板。
   ///
   /// 主要参数：
-  /// - [displayItems] 当前对话显示项列表（包含消息和思维块）；
+  /// - [turns] 当前对话 turn 列表（用户和助手消息）；
   /// - [inputController]/[scrollController] 由上层状态持有，确保折叠/展开后状态连续；
   /// - [plainTextMode] 控制气泡视图与纯文本视图切换；
   /// - [onSendMessage]/[onTogglePlainTextMode]/[onCopyAllMessages] 由上层注入行为。
   const ChatPanel({
     super.key,
-    required this.displayItems,
+    required this.turns,
     required this.inputController,
     required this.scrollController,
     required this.plainTextMode,
@@ -28,11 +26,10 @@ class ChatPanel extends StatelessWidget {
     required this.onTogglePlainTextMode,
     required this.onCopyAllMessages,
     required this.onSendMessage,
-    required this.onToggleThinkingBlock,
   });
 
-  /// 对话显示项列表。
-  final List<ChatDisplayItem> displayItems;
+  /// 对话 turn 列表。
+  final List<ChatTurn> turns;
 
   /// 输入框控制器。
   final TextEditingController inputController;
@@ -61,9 +58,6 @@ class ChatPanel extends StatelessWidget {
   /// 发送当前输入消息文本。
   final ValueChanged<String> onSendMessage;
 
-  /// 切换思维块展开状态。
-  final ValueChanged<int> onToggleThinkingBlock;
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -71,7 +65,7 @@ class ChatPanel extends StatelessWidget {
       children: [
         _buildHeader(cs),
         Expanded(
-          child: displayItems.isEmpty
+          child: turns.isEmpty
               ? Center(
                   child: Text(
                     '发送消息开始对话',
@@ -84,9 +78,11 @@ class ChatPanel extends StatelessWidget {
                   key: const ValueKey('chat-message-list'),
                   controller: scrollController,
                   padding: const EdgeInsets.all(12),
-                  itemCount: displayItems.length,
-                  itemBuilder: (context, i) =>
-                      _buildDisplayItem(context, displayItems[i], i),
+                  itemCount: turns.length,
+                  itemBuilder: (context, i) => TurnBubble(
+                    key: ValueKey('turn-${turns[i].messageId}-$i'),
+                    turn: turns[i],
+                  ),
                 ),
         ),
         _buildComposer(cs),
@@ -104,7 +100,7 @@ class ChatPanel extends StatelessWidget {
           const Icon(Icons.chat, size: 18),
           const SizedBox(width: 8),
           const Expanded(child: Text('Agent 对话')),
-          if (displayItems.isNotEmpty) ...[
+          if (turns.isNotEmpty) ...[
             IconButton(
               icon: Icon(
                 plainTextMode ? Icons.chat_bubble : Icons.text_snippet,
@@ -190,32 +186,4 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
-  /// 根据显示项类型构建相应的 Widget（消息或思维块）
-  Widget _buildDisplayItem(BuildContext context, ChatDisplayItem item, int index) {
-    if (item is MessageItem) {
-      return MessageBubble(
-        key: ValueKey('msg-${item.message.time.millisecondsSinceEpoch}'),
-        message: item.message,
-        onCopy: () => _handleCopyMessage(item.message),
-      );
-    } else if (item is ThinkingItem) {
-      return ThinkingFlowWidget(
-        key: ValueKey('thinking-${item.block.startTime.millisecondsSinceEpoch}'),
-        block: item.block,
-        onToggleExpansion: (_) => onToggleThinkingBlock(index),
-        onCopy: () => _handleCopyThinkingBlock(item.block),
-      );
-    }
-    return const SizedBox.shrink();
-  }
-
-  void _handleCopyMessage(ChatMsg message) {
-    // 委托给 MessageBubble 处理
-    // 实际复制逻辑已经在 MessageBubble 中实现
-  }
-
-  void _handleCopyThinkingBlock(ThinkingBlock block) {
-    // 委托给 ThinkingFlowWidget 处理
-    // 实际复制逻辑已经在 ThinkingFlowWidget 中实现
-  }
 }
