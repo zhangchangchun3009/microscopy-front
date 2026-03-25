@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'chat_turn_models.dart';
 import 'turn_bubble.dart';
@@ -195,6 +196,14 @@ class _ResizableChatComposerState extends State<_ResizableChatComposer> {
     });
   }
 
+  /// 组合键发送：支持 Ctrl+Enter / Command+Enter。
+  void _trySendFromShortcut() {
+    if (!widget.wsConnected || widget.agentBusy) {
+      return;
+    }
+    widget.onSendMessage(widget.inputController.text);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = widget.colorScheme;
@@ -239,27 +248,39 @@ class _ResizableChatComposerState extends State<_ResizableChatComposer> {
                 Expanded(
                   child: SizedBox(
                     height: _editorHeight,
-                    child: TextField(
-                      key: const ValueKey('chat-input-field'),
-                      controller: widget.inputController,
-                      expands: true,
-                      maxLines: null,
-                      minLines: null,
-                      keyboardType: TextInputType.multiline,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: InputDecoration(
-                        hintText: '输入指令…',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
+                    child: CallbackShortcuts(
+                      bindings: <ShortcutActivator, VoidCallback>{
+                        SingleActivator(
+                          LogicalKeyboardKey.enter,
+                          control: true,
+                        ): _trySendFromShortcut,
+                        SingleActivator(
+                          LogicalKeyboardKey.enter,
+                          meta: true,
+                        ): _trySendFromShortcut,
+                      },
+                      child: TextField(
+                        key: const ValueKey('chat-input-field'),
+                        controller: widget.inputController,
+                        expands: true,
+                        maxLines: null,
+                        minLines: null,
+                        keyboardType: TextInputType.multiline,
+                        textAlignVertical: TextAlignVertical.top,
+                        decoration: InputDecoration(
+                          hintText: '输入指令…（Ctrl/Command+Enter 发送）',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          alignLabelWithHint: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          isDense: true,
                         ),
-                        alignLabelWithHint: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        isDense: true,
+                        textInputAction: TextInputAction.newline,
                       ),
-                      textInputAction: TextInputAction.newline,
                     ),
                   ),
                 ),
@@ -269,7 +290,7 @@ class _ResizableChatComposerState extends State<_ResizableChatComposer> {
                       ? () => widget.onSendMessage(widget.inputController.text)
                       : null,
                   icon: const Icon(Icons.send),
-                  tooltip: '发送',
+                  tooltip: '发送（Ctrl+Enter / Command+Enter）',
                 ),
               ],
             ),

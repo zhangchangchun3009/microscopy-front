@@ -31,7 +31,7 @@ class _TurnBubbleState extends State<TurnBubble> {
 
   Future<void> _handleCopy() async {
     widget.onCopy?.call();
-    final text = widget.turn.finalContent;
+    final text = widget.turn.filteredFinalContent;
     if (text.isEmpty) {
       return;
     }
@@ -52,6 +52,10 @@ class _TurnBubbleState extends State<TurnBubble> {
     final cs = Theme.of(context).colorScheme;
     final isUser = widget.turn.role == TurnRole.user;
     final hasThoughts = widget.turn.thoughtSteps.isNotEmpty;
+    final finalText = widget.turn.filteredFinalContent;
+    final toolPreviewBytes =
+        isUser ? const <Uint8List>[] : _flattenToolPreviewImages(widget.turn);
+    final hasToolPreviews = toolPreviewBytes.isNotEmpty;
     final bubbleColor = isUser ? cs.primary : cs.surfaceContainerHigh;
     final textColor = isUser ? cs.onPrimary : cs.onSurface;
 
@@ -76,14 +80,18 @@ class _TurnBubbleState extends State<TurnBubble> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context, cs, isUser),
+                if (hasToolPreviews) ...[
+                  const SizedBox(height: 8),
+                  _buildOutsideToolPreviews(context, cs, toolPreviewBytes),
+                ],
                 if (hasThoughts) ...[
                   const SizedBox(height: 8),
                   _buildThoughtBlock(context, cs),
                 ],
-                if (widget.turn.finalContent.isNotEmpty) ...[
-                  if (hasThoughts) const SizedBox(height: 8),
+                if (finalText.isNotEmpty) ...[
+                  if (hasThoughts || hasToolPreviews) const SizedBox(height: 8),
                   SelectableText(
-                    widget.turn.finalContent,
+                    finalText,
                     style: TextStyle(color: textColor),
                   ),
                 ],
@@ -92,6 +100,67 @@ class _TurnBubbleState extends State<TurnBubble> {
           ),
         );
       },
+    );
+  }
+
+  /// 收集本 turn 内所有工具步骤附带的预览图（顺序与步骤一致），供在思考区外展示。
+  static List<Uint8List> _flattenToolPreviewImages(ChatTurn turn) {
+    final out = <Uint8List>[];
+    for (final step in turn.thoughtSteps) {
+      if (step.type == StepType.toolCall && step.previewImages.isNotEmpty) {
+        out.addAll(step.previewImages);
+      }
+    }
+    return out;
+  }
+
+  /// 思考过程折叠时仍可见：工具产出的图像预览条。
+  Widget _buildOutsideToolPreviews(
+    BuildContext context,
+    ColorScheme cs,
+    List<Uint8List> images,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '图像预览',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 6),
+        for (var i = 0; i < images.length; i++)
+          Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+            child: Material(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(10),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4,
+                  child: Image.memory(
+                    images[i],
+                    fit: BoxFit.contain,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, _, _) => Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        '无法解码图像',
+                        style: TextStyle(color: cs.error, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -113,7 +182,7 @@ class _TurnBubbleState extends State<TurnBubble> {
           ),
         ),
         const Spacer(),
-        if (widget.turn.finalContent.isNotEmpty)
+        if (widget.turn.filteredFinalContent.isNotEmpty)
           IconButton(
             tooltip: _copied ? '已复制' : '复制最终文本',
             iconSize: 16,
@@ -171,6 +240,7 @@ class _TurnBubbleState extends State<TurnBubble> {
 
   Widget _buildStepItem(ThoughtStep step, ColorScheme cs) {
     if (step.type == StepType.thought) {
+      final thoughtText = ChatTurn.stripInlineDataImageBase64(step.text ?? '');
       return Padding(
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
         child: Row(
@@ -180,7 +250,7 @@ class _TurnBubbleState extends State<TurnBubble> {
             const SizedBox(width: 8),
             Expanded(
               child: SelectableText(
-                step.text ?? '',
+                thoughtText,
                 style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
               ),
             ),

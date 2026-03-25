@@ -163,7 +163,8 @@ class ChatSessionController extends ChangeNotifier {
       sb.writeln('$who [思考过程]');
       for (final step in turn.thoughtSteps) {
         if (step.type == StepType.thought) {
-          sb.writeln('  ℹ️ ${step.text ?? ""}');
+          final t = ChatTurn.stripInlineDataImageBase64(step.text ?? '');
+          sb.writeln('  ℹ️ $t');
           continue;
         }
         final prefix = switch (step.toolStatus ?? ToolStatus.running) {
@@ -173,12 +174,18 @@ class ChatSessionController extends ChangeNotifier {
         };
         sb.writeln('$prefix ${step.toolName ?? "工具"}');
         if ((step.resultText ?? '').isNotEmpty) {
-          sb.writeln('    ${step.resultText}');
+          sb.writeln(
+            '    ${ChatTurn.stripInlineDataImageBase64(step.resultText ?? '')}',
+          );
+        }
+        if (step.previewImages.isNotEmpty) {
+          sb.writeln('    [图像预览 ${step.previewImages.length} 张]');
         }
       }
     }
-    if (turn.finalContent.isNotEmpty) {
-      sb.writeln('$who ${turn.finalContent}');
+    final finalText = turn.filteredFinalContent;
+    if (finalText.isNotEmpty) {
+      sb.writeln('$who $finalText');
     }
     return sb.toString();
   }
@@ -269,7 +276,8 @@ class ChatSessionController extends ChangeNotifier {
           turn.endToolCall(
             status: resolvedStatus,
             resultText: (data['result'] ?? data['output'])?.toString(),
-          );
+            previewImages: _decodeToolPreviewImages(data),
+       );
           _logWs(
             'dispatch',
             'tool_call_end -> status=$resolvedStatus, duration_ms=${data['duration_ms']}',
@@ -365,6 +373,26 @@ class ChatSessionController extends ChangeNotifier {
       return text;
     }
     return '${text.substring(0, max)}...';
+  }
+
+  /// 解析 WebSocket `tool_call_end` 中的 [result_image_base64]（单张），供对话框预览。
+  static List<Uint8List> decodeToolPreviewImagesForTest(Map<String, dynamic> data) =>
+      _decodeToolPreviewImages(data);
+
+  static List<Uint8List> _decodeToolPreviewImages(Map<String, dynamic> data) {
+    final raw = data['result_image_base64'];
+    if (raw is! String || raw.isEmpty) {
+      return <Uint8List>[];
+    }
+    try {
+      final bytes = base64Decode(raw);
+      if (bytes.isEmpty) {
+        return <Uint8List>[];
+      }
+      return <Uint8List>[bytes];
+    } catch (_) {
+      return <Uint8List>[];
+    }
   }
 
   void _warnProtocolMismatch(String type, Map<String, dynamic> payload) {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:microscope_app/ui/chat/chat_session_controller.dart';
 import 'package:microscope_app/ui/chat/chat_turn_models.dart';
@@ -76,6 +78,44 @@ void main() {
       final iReconnect = text.indexOf('[状态] 重连');
       expect(iFirstStatus, lessThan(iAssistant));
       expect(iAssistant, lessThan(iReconnect));
+    });
+
+    test('tool_call_end 含 result_image_base64 时写入预览字节', () {
+      final controller = ChatSessionController();
+      final b64 = base64Encode([10, 20, 30]);
+      controller.handleIncomingEventForTest('{"type":"turn_start","message_id":"m-img"}');
+      controller.handleIncomingEventForTest(
+        '{"type":"tool_call_start","message_id":"m-img","tool_name":"capture_image","args":{}}',
+      );
+      controller.handleIncomingEventForTest(
+        '{"type":"tool_call_end","message_id":"m-img","success":true,"result":"{}",'
+        '"result_image_base64":"$b64"}',
+      );
+      controller.handleIncomingEventForTest('{"type":"turn_end","message_id":"m-img"}');
+
+      final toolStep = controller.turns.single.steps.firstWhere(
+        (s) => s.type == StepType.toolCall,
+      );
+      expect(toolStep.previewImages.single, [10, 20, 30]);
+    });
+  });
+
+  group('decodeToolPreviewImagesForTest', () {
+    test('合法 base64 返回单元素列表', () {
+      final out = ChatSessionController.decodeToolPreviewImagesForTest({
+        'result_image_base64': base64Encode([1, 2, 3]),
+      });
+      expect(out.single, [1, 2, 3]);
+    });
+
+    test('缺省或非法字段返回空列表', () {
+      expect(ChatSessionController.decodeToolPreviewImagesForTest({}), isEmpty);
+      expect(
+        ChatSessionController.decodeToolPreviewImagesForTest({
+          'result_image_base64': '%%%',
+        }),
+        isEmpty,
+      );
     });
   });
 }

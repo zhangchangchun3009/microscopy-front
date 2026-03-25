@@ -46,8 +46,12 @@ class ThoughtStep {
     this.argsText,
     this.resultText,
     this.toolStatus,
+    List<Uint8List>? previewImages,
     DateTime? timestamp,
-  }) : timestamp = timestamp ?? DateTime.now();
+  })  : previewImages = previewImages != null
+            ? List<Uint8List>.from(previewImages)
+            : <Uint8List>[],
+        timestamp = timestamp ?? DateTime.now();
 
   /// 步骤类型。
   final StepType type;
@@ -66,6 +70,9 @@ class ThoughtStep {
 
   /// 工具状态（仅 [StepType.toolCall] 使用）。
   ToolStatus? toolStatus;
+
+  /// 工具成功后附带的图像预览（如 `capture_image`），仅用于 UI，不参与模型上下文。
+  final List<Uint8List> previewImages;
 
   /// 记录步骤时间。
   final DateTime timestamp;
@@ -117,6 +124,34 @@ class ChatTurn extends ChangeNotifier {
     return '';
   }
 
+  /// 过滤后的最终文本：移除 LLM 可能输出的 `![](data:image/...;base64,...)`
+  /// 这种内联 base64 图片占位，避免正文里出现大段 base64 信息。
+  String get filteredFinalContent => _stripInlineDataImageBase64(finalContent);
+
+  /// 移除所有 `![](data:image/...;base64,...)` 的 Markdown 内联图片占位。
+  ///
+  /// 说明：
+  /// - 仅针对 `data:image/*;base64,` 形式；
+  /// - 不影响你在工具预览区外渲染的图片（那是由 `previewImages` 解码出来的）。
+  /// 移除所有 `![](data:image/...;base64,...)` 的 Markdown 内联图片占位。
+  ///
+  /// 该方法同时用于正文展示与思考过程/纯文本转写中的过滤。
+  static String stripInlineDataImageBase64(String input) {
+    if (input.isEmpty) {
+      return input;
+    }
+    // Match entire Markdown image: ![alt](data:image/<type>;base64,<payload>)
+    final mdDataImagePattern = RegExp(
+      r'!\[[^\]]*\]\(data:image\/[^)]*?base64,[^)]*?\)',
+      multiLine: true,
+    );
+    return input.replaceAll(mdDataImagePattern, '').trim();
+  }
+
+  // Backward compatible alias for any internal call sites.
+  static String _stripInlineDataImageBase64(String input) =>
+      stripInlineDataImageBase64(input);
+
   /// UI 折叠状态：是否展开思考步骤。
   bool isThinkingExpanded = false;
 
@@ -142,7 +177,11 @@ class ChatTurn extends ChangeNotifier {
   /// 结束当前工具调用步骤。
   ///
   /// 若不存在运行中的工具步骤，会创建一个匿名工具步骤并直接结束。
-  void endToolCall({required ToolStatus status, String? resultText}) {
+  void endToolCall({
+    required ToolStatus status,
+    String? resultText,
+    List<Uint8List>? previewImages,
+  }) {
     ThoughtStep? active;
     for (final step in _steps.reversed) {
       if (step.type == StepType.toolCall && step.toolStatus == ToolStatus.running) {
@@ -156,11 +195,17 @@ class ChatTurn extends ChangeNotifier {
         type: StepType.toolCall,
         toolStatus: status,
         resultText: resultText,
+        previewImages: previewImages,
       );
       _steps.add(active);
     } else {
       active.toolStatus = status;
       active.resultText = resultText;
+      if (previewImages != null && previewImages.isNotEmpty) {
+        active.previewImages
+          ..clear()
+          ..addAll(previewImages);
+      }
     }
     notifyListeners();
   }
