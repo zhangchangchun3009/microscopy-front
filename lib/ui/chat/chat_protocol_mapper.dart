@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'chat_models.dart';
 
 /// 协议事件映射结果。
@@ -56,7 +58,14 @@ class ChatProtocolMapper {
 
     switch (type) {
       case 'chunk':
-        chunkBuffer.write(data['content'] ?? '');
+        final content = data['content'] ?? '';
+        chunkBuffer.write(content);
+
+        // 通过文本模式识别特殊消息类型
+        final categorized = _categorizeMessageByPattern(content);
+        if (categorized != null) {
+          mappedMessages.add(categorized);
+        }
         break;
       case 'tool_call':
         flushChunks();
@@ -110,5 +119,55 @@ class ChatProtocolMapper {
       messages: mappedMessages,
       agentBusy: nextBusy,
     );
+  }
+
+  /// 通过文本模式识别特殊消息类型（用于服务器未标记类型的场景）
+  static ChatMsg? _categorizeMessageByPattern(String text) {
+    // 添加调试日志
+    debugPrint('🔍 categorizeMessage: "$text"');
+
+    // 思考状态
+    if (text.contains('🤔') || text.contains('Thinking')) {
+      debugPrint('  → 识别为 status (Thinking)');
+      return ChatMsg(role: MsgRole.status, text: text);
+    }
+
+    // 工具调用开始 - 支持多种格式
+    if (text.startsWith('⏳') || text.contains('工具调用:') || text.contains('调用工具:')) {
+      // 尝试提取工具名称
+      String? toolName;
+      if (text.startsWith('⏳')) {
+        final parts = text.substring(2).trim().split(':');
+        toolName = parts.isNotEmpty ? parts[0].trim() : null;
+      }
+      debugPrint('  → 识别为 toolCall: "$toolName"');
+      return ChatMsg(
+        role: MsgRole.toolCall,
+        text: text,
+        toolName: toolName,
+      );
+    }
+
+    // 工具调用完成
+    if (text.startsWith('✓') || text.startsWith('✅')) {
+      final parts = text.substring(1).trim().split(' ');
+      final toolName = parts.isNotEmpty ? parts[0].trim() : '';
+      debugPrint('  → 识别为 toolResult: "$toolName"');
+      return ChatMsg(
+        role: MsgRole.toolResult,
+        text: text,
+        toolName: toolName.isNotEmpty ? toolName : null,
+      );
+    }
+
+    // 工具调用统计
+    if (text.contains('Got') && text.contains('tool call(s)')) {
+      debugPrint('  → 识别为 status (统计信息)');
+      return ChatMsg(role: MsgRole.status, text: text);
+    }
+
+    // 默认返回 null，让消息保持原有类型
+    debugPrint('  → 未匹配任何模式，保持原类型');
+    return null;
   }
 }

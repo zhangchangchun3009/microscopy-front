@@ -1,19 +1,7 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import 'chat_models.dart';
 import 'chat_turn_models.dart';
 import 'turn_bubble.dart';
-
-/// Formats message timestamp as "MM-dd HH:mm".
-String _formatMessageTime(DateTime time) {
-  return '${time.month.toString().padLeft(2, '0')}-'
-      '${time.day.toString().padLeft(2, '0')} '
-      '${time.hour.toString().padLeft(2, '0')}:'
-      '${time.minute.toString().padLeft(2, '0')}';
-}
 
 /// 右侧聊天面板组件。
 ///
@@ -22,14 +10,12 @@ class ChatPanel extends StatelessWidget {
   /// 创建聊天面板。
   ///
   /// 主要参数：
-  /// - [messages] 当前对话消息列表（向后兼容，已废弃）；
-  /// - [turns] 新的对话回合列表（使用 ChatTurn 模型）；
+  /// - [turns] 当前对话 turn 列表（用户和助手消息）；
   /// - [inputController]/[scrollController] 由上层状态持有，确保折叠/展开后状态连续；
   /// - [plainTextMode] 控制气泡视图与纯文本视图切换；
   /// - [onSendMessage]/[onTogglePlainTextMode]/[onCopyAllMessages] 由上层注入行为。
   const ChatPanel({
     super.key,
-    required this.messages,
     required this.turns,
     required this.inputController,
     required this.scrollController,
@@ -42,10 +28,7 @@ class ChatPanel extends StatelessWidget {
     required this.onSendMessage,
   });
 
-  /// 对话消息列表（向后兼容，已废弃）。
-  final List<ChatMsg> messages;
-
-  /// 对话回合列表（新模型）。
+  /// 对话 turn 列表。
   final List<ChatTurn> turns;
 
   /// 输入框控制器。
@@ -78,14 +61,11 @@ class ChatPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final useTurns = turns.isNotEmpty;
-    final displayList = useTurns ? turns : messages;
-
     return Column(
       children: [
         _buildHeader(cs),
         Expanded(
-          child: displayList.isEmpty
+          child: turns.isEmpty
               ? Center(
                   child: Text(
                     '发送消息开始对话',
@@ -94,34 +74,29 @@ class ChatPanel extends StatelessWidget {
                 )
               : plainTextMode
               ? _buildPlainTextView(cs)
-              : useTurns
-                  ? ListView.builder(
-                      key: const ValueKey('chat-message-list'),
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(12),
-                      itemCount: turns.length,
-                      itemBuilder: (context, i) {
-                        final turn = turns[i];
-                        return TurnBubble(
-                          turn: turn,
-                          onCopy: () => _copyTurn(turn),
-                        );
-                      },
-                    )
-                  : ListView.builder(
-                      key: const ValueKey('chat-message-list'),
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(12),
-                      itemCount: messages.length,
-                      itemBuilder: (context, i) =>
-                          _buildMessage(context, messages[i], cs),
-                    ),
+              : ListView.builder(
+                  key: const ValueKey('chat-message-list'),
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(12),
+                  itemCount: turns.length,
+                  itemBuilder: (context, i) => TurnBubble(
+                    key: ValueKey('turn-${turns[i].messageId}-$i'),
+                    turn: turns[i],
+                  ),
+                ),
         ),
-        _buildComposer(cs),
+        _ResizableChatComposer(
+          colorScheme: cs,
+          inputController: inputController,
+          wsConnected: wsConnected,
+          agentBusy: agentBusy,
+          onSendMessage: onSendMessage,
+        ),
       ],
     );
   }
 
+  /// 构建聊天面板头部（包含标题、视图切换和复制按钮）
   Widget _buildHeader(ColorScheme cs) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -157,47 +132,7 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildComposer(ColorScheme cs) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        border: Border(top: BorderSide(color: cs.outlineVariant)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              key: const ValueKey('chat-input-field'),
-              controller: inputController,
-              decoration: InputDecoration(
-                hintText: '输入指令…',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                isDense: true,
-              ),
-              onSubmitted: onSendMessage,
-              textInputAction: TextInputAction.send,
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            onPressed: wsConnected && !agentBusy
-                ? () => onSendMessage(inputController.text)
-                : null,
-            icon: const Icon(Icons.send),
-            tooltip: '发送',
-          ),
-        ],
-      ),
-    );
-  }
-
+  /// 构建纯文本视图（整个对话为单一可选中块）
   Widget _buildPlainTextView(ColorScheme cs) {
     return SingleChildScrollView(
       key: const ValueKey('chat-message-list'),
@@ -215,236 +150,132 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildMessage(BuildContext context, ChatMsg msg, ColorScheme cs) {
-    return switch (msg.role) {
-      MsgRole.user => _userBubble(context, msg, cs),
-      MsgRole.assistant => _assistantBubble(context, msg, cs),
-      MsgRole.toolCall => _toolCallCard(msg, cs),
-      MsgRole.toolResult => _toolResultCard(msg, cs),
-      MsgRole.error => _errorCard(msg, cs),
-      MsgRole.status => _statusLine(msg, cs),
-    };
+}
+
+/// 可垂直拖动调整高度的输入区：多行编辑 + 顶部拖拽手柄。
+///
+/// - 初始高度约两行文本，最小约一行，最大避免占满屏幕；
+/// - 多行时由发送按钮发送，回车插入换行。
+class _ResizableChatComposer extends StatefulWidget {
+  const _ResizableChatComposer({
+    required this.colorScheme,
+    required this.inputController,
+    required this.wsConnected,
+    required this.agentBusy,
+    required this.onSendMessage,
+  });
+
+  final ColorScheme colorScheme;
+  final TextEditingController inputController;
+  final bool wsConnected;
+  final bool agentBusy;
+  final ValueChanged<String> onSendMessage;
+
+  @override
+  State<_ResizableChatComposer> createState() => _ResizableChatComposerState();
+}
+
+class _ResizableChatComposerState extends State<_ResizableChatComposer> {
+  static const double _minHeight = 52;
+  static const double _maxHeight = 320;
+  static const double _initialHeight = 88;
+
+  late double _editorHeight;
+
+  @override
+  void initState() {
+    super.initState();
+    _editorHeight = _initialHeight;
   }
 
-  Widget _userBubble(BuildContext context, ChatMsg msg, ColorScheme cs) {
-    return Align(
-      alignment: Alignment.centerRight,
+  void _onResizeDragUpdate(DragUpdateDetails details) {
+    // 手指/光标向上拖（delta.dy < 0）增大输入区高度
+    setState(() {
+      _editorHeight = (_editorHeight - details.delta.dy).clamp(_minHeight, _maxHeight);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = widget.colorScheme;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        border: Border(top: BorderSide(color: cs.outlineVariant)),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header on the right (mirrored)
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '@${_formatMessageTime(msg.time)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeUpDown,
+            child: GestureDetector(
+              key: const ValueKey('chat-composer-resize-handle'),
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragUpdate: _onResizeDragUpdate,
+              child: Tooltip(
+                message: '上下拖动调整输入区高度',
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 4),
-              Text(
-                '我',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(Icons.person, size: 16, color: cs.primary),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Bubble
-          Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            margin: const EdgeInsets.only(bottom: 8, left: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.primary, // 主题蓝色
-              borderRadius: BorderRadius.circular(16),
             ),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                textSelectionTheme: TextSelectionThemeData(
-                  selectionColor: Color(0xFF8B4513), // 深棕色选中背景
-                  selectionHandleColor: Color(0xFF8B4513),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: _editorHeight,
+                    child: TextField(
+                      key: const ValueKey('chat-input-field'),
+                      controller: widget.inputController,
+                      expands: true,
+                      maxLines: null,
+                      minLines: null,
+                      keyboardType: TextInputType.multiline,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: InputDecoration(
+                        hintText: '输入指令…',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        alignLabelWithHint: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        isDense: true,
+                      ),
+                      textInputAction: TextInputAction.newline,
+                    ),
+                  ),
                 ),
-              ),
-              child: SelectableText(
-                msg.text,
-                style: TextStyle(color: cs.onPrimary),
-              ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: widget.wsConnected && !widget.agentBusy
+                      ? () => widget.onSendMessage(widget.inputController.text)
+                      : null,
+                  icon: const Icon(Icons.send),
+                  tooltip: '发送',
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  Widget _assistantBubble(BuildContext context, ChatMsg msg, ColorScheme cs) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header on the left
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.smart_toy, size: 16, color: cs.onSurfaceVariant),
-              const SizedBox(width: 6),
-              Text(
-                '助手',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '@${_formatMessageTime(msg.time)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // Bubble
-          Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            margin: const EdgeInsets.only(bottom: 8, right: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: SelectableText(msg.text),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _toolCallCard(ChatMsg msg, ColorScheme cs) {
-    final argsStr = msg.toolArgs != null
-        ? const JsonEncoder.withIndent('  ').convert(msg.toolArgs)
-        : '';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.tertiary.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ExpansionTile(
-        dense: true,
-        leading: Icon(Icons.build, size: 18, color: cs.tertiary),
-        title: SelectableText(
-          '工具调用: ${msg.toolName ?? "?"}',
-          style: TextStyle(fontSize: 13, color: cs.tertiary),
-        ),
-        children: [
-          if (argsStr.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              color: cs.surfaceContainerHighest,
-              child: SelectableText(
-                argsStr,
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _toolResultCard(ChatMsg msg, ColorScheme cs) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: cs.secondary.withValues(alpha: 0.3)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ExpansionTile(
-        dense: true,
-        initiallyExpanded: false,
-        leading: Icon(
-          Icons.check_circle_outline,
-          size: 18,
-          color: cs.secondary,
-        ),
-        title: SelectableText(
-          '工具结果: ${msg.toolName ?? ""}',
-          style: TextStyle(fontSize: 13, color: cs.secondary),
-        ),
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            color: cs.surfaceContainerHighest,
-            child: SelectableText(
-              msg.text,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _errorCard(ChatMsg msg, ColorScheme cs) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: cs.errorContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, size: 18, color: cs.error),
-          const SizedBox(width: 8),
-          Expanded(
-            child: SelectableText(
-              msg.text,
-              style: TextStyle(color: cs.onErrorContainer),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusLine(ChatMsg msg, ColorScheme cs) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Center(
-        child: SelectableText(
-          msg.text,
-          style: TextStyle(
-            fontSize: 11,
-            color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 复制单个回合的内容。
-  void _copyTurn(ChatTurn turn) async {
-    try {
-      await Clipboard.setData(ClipboardData(text: turn.finalContent));
-      // 可以扩展为显示提示
-    } catch (_) {
-      // 静默失败
-    }
   }
 }

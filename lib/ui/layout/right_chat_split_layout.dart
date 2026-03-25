@@ -41,6 +41,7 @@ class _RightChatSplitLayoutState extends State<RightChatSplitLayout> {
     );
   }
 
+  /// 切换聊天面板的展开/折叠状态
   void _toggleChat(double windowWidth) {
     setState(() {
       _widthModel.clampForWindow(windowWidth);

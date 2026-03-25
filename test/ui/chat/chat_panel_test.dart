@@ -1,30 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:microscope_app/ui/chat/chat_models.dart';
 import 'package:microscope_app/ui/chat/chat_panel.dart';
 import 'package:microscope_app/ui/chat/chat_turn_models.dart';
 
 void main() {
-  group('ChatPanel with message headers', () {
-    testWidgets('displays assistant message with robot icon and timestamp', (
-      tester,
-    ) async {
-      // Arrange
-      final messages = [
-        ChatMsg(
-          role: MsgRole.assistant,
-          text: 'Hello',
-          time: DateTime(2026, 3, 23, 14, 30),
-        ),
-      ];
+  group('ChatPanel with turns', () {
+    testWidgets('displays assistant turn with robot icon', (tester) async {
+      final assistantTurn = ChatTurn(messageId: 'a1', role: TurnRole.assistant)
+        ..updateContent('Hello')
+        ..finish();
 
-      // Act
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              messages: messages,
-              turns: [], // Empty for legacy test
+              turns: [assistantTurn],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -39,32 +29,20 @@ void main() {
         ),
       );
 
-      // Assert
       expect(find.byIcon(Icons.smart_toy), findsOneWidget);
       expect(find.text('助手'), findsOneWidget);
-      // Time format check (pattern match)
-      expect(find.textContaining('@'), findsOneWidget);
     });
 
-    testWidgets('displays user message with person icon and timestamp', (
-      tester,
-    ) async {
-      // Arrange
-      final messages = [
-        ChatMsg(
-          role: MsgRole.user,
-          text: 'Hi',
-          time: DateTime(2026, 3, 23, 15, 45),
-        ),
-      ];
+    testWidgets('displays user turn with person icon', (tester) async {
+      final userTurn = ChatTurn(messageId: 'u1', role: TurnRole.user)
+        ..updateContent('Hi')
+        ..finish();
 
-      // Act
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              messages: messages,
-              turns: [], // Empty for legacy test
+              turns: [userTurn],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -79,11 +57,32 @@ void main() {
         ),
       );
 
-      // Assert
       expect(find.byIcon(Icons.person), findsOneWidget);
       expect(find.text('我'), findsOneWidget);
-      // Time format check (pattern match)
-      expect(find.textContaining('@'), findsOneWidget);
+    });
+
+    testWidgets('输入区提供可拖动调整高度的手柄', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatPanel(
+              turns: const [],
+              inputController: TextEditingController(),
+              scrollController: ScrollController(),
+              plainTextMode: false,
+              agentBusy: false,
+              wsConnected: true,
+              plainTextTranscript: '',
+              onTogglePlainTextMode: () {},
+              onCopyAllMessages: () {},
+              onSendMessage: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('chat-composer-resize-handle')), findsOneWidget);
+      expect(find.byKey(const ValueKey('chat-input-field')), findsOneWidget);
     });
   });
 }

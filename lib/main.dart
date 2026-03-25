@@ -230,8 +230,7 @@ class _HomePageState extends State<HomePage> {
           onToggleLive: () => setState(() => _isVideoLive = !_isVideoLive),
         ),
         rightChatPane: ChatPanel(
-          messages: _chatSession.messages, // 向后兼容
-          turns: _chatSession.turns, // 新模型
+          turns: _chatSession.turns,
           inputController: _inputCtrl,
           scrollController: _scrollCtrl,
           plainTextMode: _plainTextMode,
