@@ -14,10 +14,10 @@ void main() {
         '{"type":"thought_update","message_id":"m1","text":"分析需求"}',
       );
       controller.handleIncomingEventForTest(
-        '{"type":"tool_call_start","message_id":"m1","tool_name":"search","args":{"q":"abc"}}',
+        '{"type":"tool_call_start","message_id":"m1","step_id":"s1","tool_name":"search","args":{"q":"abc"}}',
       );
       controller.handleIncomingEventForTest(
-        '{"type":"tool_call_end","message_id":"m1","status":"success","result":"ok"}',
+        '{"type":"tool_call_end","message_id":"m1","step_id":"s1","status":"success","result":"ok"}',
       );
       controller.handleIncomingEventForTest(
         '{"type":"content_update","message_id":"m1","content":"你好"}',
@@ -80,15 +80,40 @@ void main() {
       expect(iAssistant, lessThan(iReconnect));
     });
 
+    test('并行 tool_call_end 按 step_id 归因，与到达顺序无关', () {
+      final controller = ChatSessionController();
+      controller.handleIncomingEventForTest('{"type":"turn_start","message_id":"m-p"}');
+      controller.handleIncomingEventForTest(
+        '{"type":"tool_call_start","message_id":"m-p","step_id":"id-a","tool_name":"get_system_status","args":{}}',
+      );
+      controller.handleIncomingEventForTest(
+        '{"type":"tool_call_start","message_id":"m-p","step_id":"id-b","tool_name":"check_incomplete_tasks","args":{}}',
+      );
+      controller.handleIncomingEventForTest(
+        '{"type":"tool_call_end","message_id":"m-p","step_id":"id-b","success":true,"result":"tasks-json"}',
+      );
+      controller.handleIncomingEventForTest(
+        '{"type":"tool_call_end","message_id":"m-p","step_id":"id-a","success":true,"result":"status-json"}',
+      );
+      controller.handleIncomingEventForTest('{"type":"turn_end","message_id":"m-p"}');
+
+      final tools = controller.turns.single.steps.where((s) => s.type == StepType.toolCall).toList();
+      expect(tools.length, 2);
+      expect(tools[0].toolName, 'get_system_status');
+      expect(tools[0].resultText, 'status-json');
+      expect(tools[1].toolName, 'check_incomplete_tasks');
+      expect(tools[1].resultText, 'tasks-json');
+    });
+
     test('tool_call_end 含 result_image_base64 时写入预览字节', () {
       final controller = ChatSessionController();
       final b64 = base64Encode([10, 20, 30]);
       controller.handleIncomingEventForTest('{"type":"turn_start","message_id":"m-img"}');
       controller.handleIncomingEventForTest(
-        '{"type":"tool_call_start","message_id":"m-img","tool_name":"capture_image","args":{}}',
+        '{"type":"tool_call_start","message_id":"m-img","step_id":"cap1","tool_name":"capture_image","args":{}}',
       );
       controller.handleIncomingEventForTest(
-        '{"type":"tool_call_end","message_id":"m-img","success":true,"result":"{}",'
+        '{"type":"tool_call_end","message_id":"m-img","step_id":"cap1","success":true,"result":"{}",'
         '"result_image_base64":"$b64"}',
       );
       controller.handleIncomingEventForTest('{"type":"turn_end","message_id":"m-img"}');

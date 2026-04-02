@@ -44,6 +44,7 @@ class ThoughtStep {
     this.text,
     this.toolName,
     this.argsText,
+    this.stepId,
     this.resultText,
     this.toolStatus,
     List<Uint8List>? previewImages,
@@ -64,6 +65,9 @@ class ThoughtStep {
 
   /// 工具参数文本（可选）。
   final String? argsText;
+
+  /// 与服务端 `tool_call_start` / `tool_call_end` 的 `step_id` 对齐；并行工具时用于归因结果。
+  final String? stepId;
 
   /// 工具结果文本（可选）。
   String? resultText;
@@ -162,31 +166,49 @@ class ChatTurn extends ChangeNotifier {
   }
 
   /// 开始一个工具调用步骤。
-  void startToolCall({String? toolName, String? argsText}) {
+  void startToolCall({String? toolName, String? argsText, String? stepId}) {
     _steps.add(
       ThoughtStep(
         type: StepType.toolCall,
         toolName: toolName,
         argsText: argsText,
+        stepId: stepId,
         toolStatus: ToolStatus.running,
       ),
     );
     notifyListeners();
   }
 
-  /// 结束当前工具调用步骤。
+  /// 结束工具调用步骤。
   ///
-  /// 若不存在运行中的工具步骤，会创建一个匿名工具步骤并直接结束。
+  /// [stepId] 与事件 `tool_call_end.step_id` 一致时应传入，以便并行工具时把结果归因到正确步骤。
+  /// 未传时保持旧行为：结束「最后一个仍为 running 的工具步骤」（仅适合串行或单工具）。
+  ///
+  /// 若不存在可匹配的步骤，会创建一个匿名工具步骤并直接结束。
   void endToolCall({
     required ToolStatus status,
     String? resultText,
     List<Uint8List>? previewImages,
+    String? stepId,
   }) {
     ThoughtStep? active;
-    for (final step in _steps.reversed) {
-      if (step.type == StepType.toolCall && step.toolStatus == ToolStatus.running) {
-        active = step;
-        break;
+    final sid = stepId?.trim();
+    if (sid != null && sid.isNotEmpty) {
+      for (final step in _steps) {
+        if (step.type == StepType.toolCall &&
+            step.toolStatus == ToolStatus.running &&
+            step.stepId == sid) {
+          active = step;
+          break;
+        }
+      }
+    }
+    if (active == null) {
+      for (final step in _steps.reversed) {
+        if (step.type == StepType.toolCall && step.toolStatus == ToolStatus.running) {
+          active = step;
+          break;
+        }
       }
     }
 

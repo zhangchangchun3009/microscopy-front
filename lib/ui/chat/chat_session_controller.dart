@@ -266,9 +266,11 @@ class ChatSessionController extends ChangeNotifier {
         if (turn != null) {
           final toolName = data['tool_name'] as String?;
           final args = data['args'];
+          final stepId = data['step_id'] as String?;
           turn.startToolCall(
             toolName: toolName,
             argsText: args == null ? null : jsonEncode(args),
+            stepId: stepId,
           );
           _logWs(
             'dispatch',
@@ -287,7 +289,8 @@ class ChatSessionController extends ChangeNotifier {
             status: resolvedStatus,
             resultText: (data['result'] ?? data['output'])?.toString(),
             previewImages: _decodeToolPreviewImages(data),
-       );
+            stepId: data['step_id'] as String?,
+          );
           _logWs(
             'dispatch',
             'tool_call_end -> status=$resolvedStatus, duration_ms=${data['duration_ms']}',

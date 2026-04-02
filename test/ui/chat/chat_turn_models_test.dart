@@ -34,5 +34,29 @@ void main() {
       expect(turn.steps.single.toolStatus, ToolStatus.error);
       expect(turn.steps.single.resultText, 'boom');
     });
+
+    test('parallel tool ends match by step_id not completion order', () {
+      final turn = ChatTurn(messageId: 'm-parallel');
+
+      turn.startToolCall(toolName: 'tool_a', stepId: 'step-a');
+      turn.startToolCall(toolName: 'tool_b', stepId: 'step-b');
+
+      turn.endToolCall(
+        status: ToolStatus.success,
+        resultText: 'result-b',
+        stepId: 'step-b',
+      );
+      turn.endToolCall(
+        status: ToolStatus.success,
+        resultText: 'result-a',
+        stepId: 'step-a',
+      );
+
+      expect(turn.steps.length, 2);
+      expect(turn.steps[0].toolName, 'tool_a');
+      expect(turn.steps[0].resultText, 'result-a');
+      expect(turn.steps[1].toolName, 'tool_b');
+      expect(turn.steps[1].resultText, 'result-b');
+    });
   });
 }
