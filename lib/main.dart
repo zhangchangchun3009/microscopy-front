@@ -9,6 +9,7 @@ import 'ui/chat/chat_panel.dart';
 import 'ui/chat/chat_session_controller.dart';
 import 'ui/layout/right_chat_split_layout.dart';
 import 'ui/settings/connection_settings_dialog.dart';
+import 'ui/video/roi_overlay.dart';
 import 'ui/video/video_stage.dart';
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,7 @@ class _HomePageState extends State<HomePage> {
   AppConfig _config = AppConfig();
   bool _configLoaded = false;
   bool _isVideoLive = true;
+  RoiRectNorm? _currentRoi;
 
   /// 与 microscopy_server 的 Socket.IO，用于 get_settings 初始化及后续进度等
   final MicroscopySocket _microscopySocket = MicroscopySocket();
@@ -122,7 +124,10 @@ class _HomePageState extends State<HomePage> {
   void _sendMessage(String text) {
     final normalized = text.trim();
     if (normalized.isEmpty || !_chatSession.wsConnected) return;
-    _chatSession.sendMessage(normalized);
+    _chatSession.sendMessage(
+      normalized,
+      roiNorm: _currentRoi?.toPayload(),
+    );
     _inputCtrl.clear();
     _scrollToBottom();
   }
@@ -228,6 +233,7 @@ class _HomePageState extends State<HomePage> {
           videoUrl: _config.videoUrl,
           isVideoLive: _isVideoLive,
           onToggleLive: () => setState(() => _isVideoLive = !_isVideoLive),
+          onRoiChanged: (roi) => setState(() => _currentRoi = roi),
         ),
         rightChatPane: ChatPanel(
           turns: _chatSession.turns,

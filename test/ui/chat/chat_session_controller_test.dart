@@ -98,6 +98,26 @@ void main() {
       );
       expect(toolStep.previewImages.single, [10, 20, 30]);
     });
+
+    test('buildOutboundMessagePayload 在有 ROI 时附带 roi_norm', () {
+      final payload = ChatSessionController.buildOutboundMessagePayloadForTest(
+        '请分析该区域',
+        roiNorm: {
+          'type': 'rect',
+          'coords_norm': {'x': 0.2, 'y': 0.3, 'w': 0.4, 'h': 0.5},
+        },
+      );
+      expect(payload['type'], 'message');
+      expect(payload['content'], '请分析该区域');
+      expect(payload['roi_norm'], isNotNull);
+    });
+
+    test('buildOutboundMessagePayload 无 ROI 时保持旧行为', () {
+      final payload = ChatSessionController.buildOutboundMessagePayloadForTest(
+        '不带 ROI 的消息',
+      );
+      expect(payload, {'type': 'message', 'content': '不带 ROI 的消息'});
+    });
   });
 
   group('decodeToolPreviewImagesForTest', () {

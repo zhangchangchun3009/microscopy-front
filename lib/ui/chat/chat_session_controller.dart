@@ -93,7 +93,7 @@ class ChatSessionController extends ChangeNotifier {
   ///
   /// - 若 [text] 为空或未连接，直接忽略；
   /// - 成功发送后会追加一条用户消息并将 [agentBusy] 置为 `true`。
-  void sendMessage(String text) {
+  void sendMessage(String text, {Map<String, dynamic>? roiNorm}) {
     final normalized = text.trim();
     if (normalized.isEmpty || !_wsConnected) {
       return;
@@ -109,8 +109,18 @@ class ChatSessionController extends ChangeNotifier {
     _turns.add(userTurn);
 
     _agentBusy = true;
-    _channel?.sink.add(jsonEncode({'type': 'message', 'content': normalized}));
+    final payload = _buildOutboundMessagePayload(normalized, roiNorm: roiNorm);
+    _channel?.sink.add(jsonEncode(payload));
     notifyListeners();
+  }
+
+  /// 仅供测试：构建用户消息的 WebSocket 负载。
+  @visibleForTesting
+  static Map<String, dynamic> buildOutboundMessagePayloadForTest(
+    String content, {
+    Map<String, dynamic>? roiNorm,
+  }) {
+    return _buildOutboundMessagePayload(content, roiNorm: roiNorm);
   }
 
   /// 追加状态消息，用于外部流程（如设置变更后的提示）。
@@ -393,6 +403,17 @@ class ChatSessionController extends ChangeNotifier {
     } catch (_) {
       return <Uint8List>[];
     }
+  }
+
+  static Map<String, dynamic> _buildOutboundMessagePayload(
+    String content, {
+    Map<String, dynamic>? roiNorm,
+  }) {
+    final payload = <String, dynamic>{'type': 'message', 'content': content};
+    if (roiNorm != null) {
+      payload['roi_norm'] = roiNorm;
+    }
+    return payload;
   }
 
   void _warnProtocolMismatch(String type, Map<String, dynamic> payload) {
