@@ -6,14 +6,26 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 /// 1. 启动时连接后 emit('get_settings')，使后端应用相机/LED 等设置，MJPEG 流才能正常显示；
 /// 2. 后续可复用同一连接接收长任务进度：global_scan_progress、stitch_progress、
 ///    focus_stack_progress、auto_brightness_progress、log_message 等，便于迁移原 Web 前端逻辑。
+///
+/// [on] 可在 [connect] 之前调用：待 socket 建连后会自动 `on` 到真实连接上。
 class MicroscopySocket {
   MicroscopySocket();
 
   io.Socket? _socket;
   bool _connecting = false;
 
+  final Map<String, List<void Function(dynamic)>> _handlers = {};
+
   /// 是否已连接
   bool get isConnected => _socket?.connected ?? false;
+
+  void _attachAllHandlers(io.Socket s) {
+    for (final e in _handlers.entries) {
+      for (final h in e.value) {
+        s.on(e.key, h);
+      }
+    }
+  }
 
   /// 连接并执行与 Web 前端一致的初始化：连接成功后 emit('get_settings')，
   /// 后端会应用 settings.json 中的曝光、增益、LED 等，视频流才能正常亮。
@@ -33,6 +45,7 @@ class MicroscopySocket {
 
     _socket!.onConnect((_) {
       _connecting = false;
+      _attachAllHandlers(_socket!);
       _socket!.emit('get_settings');
     });
 
@@ -63,10 +76,21 @@ class MicroscopySocket {
   }
 
   /// 订阅服务端推送事件，用于进度条、日志等。返回取消订阅的函数。
+  ///
+  /// 可在 [connect] 前调用；建连后自动生效。
   void Function() on(String event, void Function(dynamic) handler) {
+    _handlers.putIfAbsent(event, () => []).add(handler);
     _socket?.on(event, handler);
     return () {
+      final list = _handlers[event];
+      list?.remove(handler);
+      if (list != null && list.isEmpty) {
+        _handlers.remove(event);
+      }
       _socket?.off(event);
+      if (_socket != null) {
+        _attachAllHandlers(_socket!);
+      }
     };
   }
 }

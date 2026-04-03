@@ -47,6 +47,7 @@ class ChatSessionController extends ChangeNotifier {
     disconnect();
     _protocolMismatchWarned = false;
     _appendStatus('正在连接 $url …');
+    notifyListeners();
     try {
       final uri = Uri.parse(url);
       _channel = WebSocketChannel.connect(uri);

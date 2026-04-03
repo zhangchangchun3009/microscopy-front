@@ -67,6 +67,14 @@ class _HomePageState extends State<HomePage> {
   bool _isVideoLive = true;
   RoiRectNorm? _currentRoi;
 
+  /// 与比例尺联动：来自 `settings_update`。
+  /// 缺省与 Web `static/js/script.js` 全局初值一致（`pixelSize=10`、`magnification=20`），
+  /// 避免 settings.json 未写 `pixel_size` 时 Web 用 10、本端曾误用 0.09 造成约 100× 标尺偏差。
+  double _pixelSizeUmPerPx = 10;
+  int _magnification = 20;
+
+  void Function()? _cancelMicroscopySettingsSub;
+
   /// 与 microscopy_server 的 Socket.IO，用于 get_settings 初始化及后续进度等
   final MicroscopySocket _microscopySocket = MicroscopySocket();
 
@@ -80,6 +88,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _chatSession.addListener(_onChatSessionChanged);
+    _cancelMicroscopySettingsSub = _microscopySocket.on(
+      'settings_update',
+      _onMicroscopySettingsUpdate,
+    );
     // 在正常运行时按原逻辑加载配置并连接；
     // 在测试场景中可以通过传入 initialConfig / skipAutoConnect 来跳过异步流程。
     if (widget.initialConfig != null) {
@@ -95,12 +107,37 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    _cancelMicroscopySettingsSub?.call();
     _chatSession.removeListener(_onChatSessionChanged);
     _chatSession.dispose();
     _microscopySocket.disconnect();
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  void _onMicroscopySettingsUpdate(dynamic data) {
+    if (!mounted || data is! Map) {
+      return;
+    }
+    final m = Map<String, dynamic>.from(data);
+    setState(() {
+      final ps = m['pixel_size'];
+      if (ps is num) {
+        _pixelSizeUmPerPx = ps.toDouble();
+      } else if (ps is String) {
+        final v = double.tryParse(ps);
+        if (v != null) {
+          _pixelSizeUmPerPx = v;
+        }
+      }
+      final mag = m['magnification'];
+      if (mag is int) {
+        _magnification = mag;
+      } else if (mag is num) {
+        _magnification = mag.toInt();
+      }
+    });
   }
 
   Future<void> _loadConfigAndConnect() async {
@@ -234,6 +271,8 @@ class _HomePageState extends State<HomePage> {
           isVideoLive: _isVideoLive,
           onToggleLive: () => setState(() => _isVideoLive = !_isVideoLive),
           onRoiChanged: (roi) => setState(() => _currentRoi = roi),
+          pixelSizeUmPerPx: _pixelSizeUmPerPx,
+          magnification: _magnification,
         ),
         rightChatPane: ChatPanel(
           turns: _chatSession.turns,

@@ -64,6 +64,21 @@ void main() {
       expect(controller.turns, isNotEmpty);
     });
 
+    test('connect 写入「正在连接」后在 await ready 之前即触发 notify', () async {
+      final controller = ChatSessionController();
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+      // 避免误连本机可能存在的 gateway（如 42617），用高位端口保证尽快失败或挂起在 ready
+      final pending = controller.connect('ws://127.0.0.1:59998/ws/chat');
+      expect(
+        controller.messages.map((m) => m.text).any((t) => t.contains('正在连接')),
+        isTrue,
+      );
+      // disconnect 一次 notify + 正在连接 一次 notify
+      expect(notifications, greaterThanOrEqualTo(2));
+      await pending;
+    });
+
     test('formatMessagesForCopy 按时间将状态行排在相应对话前后', () {
       final controller = ChatSessionController();
       controller.appendStatusForTest('第一条连接日志', DateTime(2025, 1, 1));

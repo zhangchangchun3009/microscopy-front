@@ -195,12 +195,12 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.refresh));
     await _pumpStableFrame(tester);
-    expect(find.textContaining('正在连接'), findsOneWidget);
+    // 状态行只在 _messages 中；ChatPanel 仅渲染 turns，故无「正在连接」可见文案。
 
     final chatInputFinder = find.byKey(const ValueKey('chat-input-field'));
-    final chatListFinder = find.byKey(const ValueKey('chat-message-list'));
     expect(chatInputFinder, findsOneWidget);
-    expect(chatListFinder, findsOneWidget);
+    // 无 turn 时列表区为占位文案，而非带 key 的 ListView
+    expect(find.text('发送消息开始对话'), findsOneWidget);
     await tester.enterText(chatInputFinder, '草稿输入应保留');
     await _pumpStableFrame(tester);
 
@@ -212,8 +212,7 @@ void main() {
     await _pumpStableFrame(tester);
 
     expect(find.byKey(const ValueKey('right-chat-panel')), findsOneWidget);
-    expect(find.textContaining('正在连接'), findsOneWidget);
-    expect(chatListFinder, findsOneWidget);
+    expect(find.text('发送消息开始对话'), findsOneWidget);
     expect(find.text('草稿输入应保留'), findsOneWidget);
   });
 
@@ -232,7 +231,6 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.refresh));
     await _pumpStableFrame(tester);
-    expect(find.textContaining('正在连接'), findsOneWidget);
 
     final chatInputFinder = find.byKey(const ValueKey('chat-input-field'));
     expect(chatInputFinder, findsOneWidget);
@@ -245,8 +243,7 @@ void main() {
     }
 
     expect(find.byKey(const ValueKey('right-chat-panel')), findsOneWidget);
-    expect(find.textContaining('正在连接'), findsOneWidget);
     expect(find.text('重复切换后仍应保留'), findsOneWidget);
-    expect(find.byKey(const ValueKey('chat-message-list')), findsOneWidget);
+    expect(find.text('发送消息开始对话'), findsOneWidget);
   });
 }
