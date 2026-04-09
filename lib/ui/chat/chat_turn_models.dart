@@ -9,6 +9,182 @@ enum TurnRole {
   assistant,
 }
 
+/// 渲染文档模型。
+class RenderedDocument {
+  /// 创建渲染文档。
+  const RenderedDocument({
+    required this.markdown,
+    required this.images,
+    required this.metadata,
+    this.ttsText,
+  });
+
+  /// Markdown 内容。
+  final String markdown;
+
+  /// 图片引用列表。
+  final List<ImageReference> images;
+
+  /// 文档元数据。
+  final DocumentMetadata metadata;
+
+  /// TTS 文本（可选）。
+  final String? ttsText;
+
+  /// 从 JSON 创建渲染文档。
+  factory RenderedDocument.fromJson(Map<String, dynamic> json) {
+    return RenderedDocument(
+      markdown: json['markdown'] as String? ?? '',
+      images: (json['images'] as List<dynamic>?)
+              ?.map((e) => ImageReference.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      metadata: DocumentMetadata.fromJson(json['metadata'] as Map<String, dynamic>? ?? {}),
+      ttsText: json['tts_text'] as String?,
+    );
+  }
+
+  /// 转换为 JSON。
+  Map<String, dynamic> toJson() {
+    return {
+      'markdown': markdown,
+      'images': images.map((e) => e.toJson()).toList(),
+      'metadata': metadata.toJson(),
+      if (ttsText != null) 'tts_text': ttsText,
+    };
+  }
+}
+
+/// 图片引用模型。
+class ImageReference {
+  /// 创建图片引用。
+  const ImageReference({
+    required this.artifactId,
+    required this.url,
+    this.caption,
+    required this.layout,
+  });
+
+  /// Artifact ID。
+  final String artifactId;
+
+  /// 图片 URL。
+  final String url;
+
+  /// 图片说明（可选）。
+  final String? caption;
+
+  /// 布局类型。
+  final ImageLayout layout;
+
+  /// 从 JSON 创建图片引用。
+  factory ImageReference.fromJson(Map<String, dynamic> json) {
+    return ImageReference(
+      artifactId: json['artifact_id'] as String,
+      url: json['url'] as String,
+      caption: json['caption'] as String?,
+      layout: ImageLayout.fromString(json['layout'] as String? ?? 'single'),
+    );
+  }
+
+  /// 转换为 JSON。
+  Map<String, dynamic> toJson() {
+    return {
+      'artifact_id': artifactId,
+      'url': url,
+      if (caption != null) 'caption': caption,
+      'layout': layout.toString(),
+    };
+  }
+}
+
+/// 图片布局类型。
+enum ImageLayout {
+  single,
+  grid,
+  thumbnailList,
+  comparison;
+
+  /// 从字符串创建布局类型。
+  static ImageLayout fromString(String value) {
+    switch (value.toLowerCase()) {
+      case 'single':
+        return ImageLayout.single;
+      case 'grid':
+        return ImageLayout.grid;
+      case 'thumbnaillist':
+        return ImageLayout.thumbnailList;
+      case 'comparison':
+        return ImageLayout.comparison;
+      default:
+        return ImageLayout.single;
+    }
+  }
+
+  @override
+  String toString() {
+    switch (this) {
+      case ImageLayout.single:
+        return 'single';
+      case ImageLayout.grid:
+        return 'grid';
+      case ImageLayout.thumbnailList:
+        return 'thumbnailList';
+      case ImageLayout.comparison:
+        return 'comparison';
+    }
+  }
+}
+
+/// 文档元数据。
+class DocumentMetadata {
+  /// 创建文档元数据。
+  const DocumentMetadata({
+    required this.title,
+    required this.generatedAt,
+    required this.durationMs,
+    required this.operationType,
+    required this.success,
+  });
+
+  /// 标题。
+  final String title;
+
+  /// 生成时间。
+  final DateTime generatedAt;
+
+  /// 耗时（毫秒）。
+  final int durationMs;
+
+  /// 操作类型。
+  final String operationType;
+
+  /// 是否成功。
+  final bool success;
+
+  /// 从 JSON 创建文档元数据。
+  factory DocumentMetadata.fromJson(Map<String, dynamic> json) {
+    return DocumentMetadata(
+      title: json['title'] as String? ?? '',
+      generatedAt: DateTime.tryParse(json['generated_at'] as String? ?? '') ?? DateTime.now(),
+      durationMs: json['duration_ms'] as int? ?? 0,
+      operationType: json['operation_type'] as String? ?? '',
+      success: json['success'] as bool? ?? false,
+    );
+  }
+
+  /// 转换为 JSON。
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'generated_at': generatedAt.toIso8601String(),
+      'duration_ms': durationMs,
+      'operation_type': operationType,
+      'success': success,
+    };
+  }
+}
+
 /// turn 内步骤类型。
 enum StepType {
   /// 思考过程的增量描述。
@@ -103,6 +279,9 @@ class ChatTurn extends ChangeNotifier {
   final DateTime createdAt;
 
   final List<ThoughtStep> _steps = [];
+
+  /// 渲染文档（由渲染子代理生成）。
+  RenderedDocument? renderedDocument;
 
   /// 聚合后的步骤列表（只读）。
   List<ThoughtStep> get steps => List.unmodifiable(_steps);
@@ -255,5 +434,11 @@ class ChatTurn extends ChangeNotifier {
       _steps.add(ThoughtStep(type: StepType.done));
       notifyListeners();
     }
+  }
+
+  /// 设置渲染文档（由渲染子代理生成）。
+  void setRenderedDocument(RenderedDocument document) {
+    renderedDocument = document;
+    notifyListeners();
   }
 }

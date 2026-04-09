@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'chat_turn_models.dart';
+import 'markdown_content_view.dart';
 
 /// 渲染单个 [ChatTurn] 的聊天气泡。
 ///
@@ -27,24 +26,8 @@ class TurnBubble extends StatefulWidget {
 }
 
 class _TurnBubbleState extends State<TurnBubble> {
-  bool _copied = false;
-
-  Future<void> _handleCopy() async {
+  void _handleCopy() {
     widget.onCopy?.call();
-    final text = widget.turn.filteredFinalContent;
-    if (text.isEmpty) {
-      return;
-    }
-    await Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) {
-      return;
-    }
-    setState(() => _copied = true);
-    Timer(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        setState(() => _copied = false);
-      }
-    });
   }
 
   @override
@@ -80,6 +63,11 @@ class _TurnBubbleState extends State<TurnBubble> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context, cs, isUser),
+                // 操作报告（如果有）
+                if (widget.turn.renderedDocument != null) ...[
+                  const SizedBox(height: 8),
+                  _buildExecutionReport(context, cs),
+                ],
                 if (hasToolPreviews) ...[
                   const SizedBox(height: 8),
                   _buildOutsideToolPreviews(context, cs, toolPreviewBytes),
@@ -89,10 +77,12 @@ class _TurnBubbleState extends State<TurnBubble> {
                   _buildThoughtBlock(context, cs),
                 ],
                 if (finalText.isNotEmpty) ...[
-                  if (hasThoughts || hasToolPreviews) const SizedBox(height: 8),
-                  SelectableText(
-                    finalText,
-                    style: TextStyle(color: textColor),
+                  if (hasThoughts || hasToolPreviews || widget.turn.renderedDocument != null) const SizedBox(height: 8),
+                  // 使用 Markdown 渲染器替代普通文本
+                  MarkdownContentView(
+                    markdown: finalText,
+                    textColor: textColor,
+                    onCopy: _handleCopy,
                   ),
                 ],
               ],
@@ -181,18 +171,7 @@ class _TurnBubbleState extends State<TurnBubble> {
             color: isUser ? cs.onPrimary : cs.onSurfaceVariant,
           ),
         ),
-        const Spacer(),
-        if (widget.turn.filteredFinalContent.isNotEmpty)
-          IconButton(
-            tooltip: _copied ? '已复制' : '复制最终文本',
-            iconSize: 16,
-            visualDensity: VisualDensity.compact,
-            onPressed: _handleCopy,
-            icon: Icon(
-              _copied ? Icons.check : Icons.copy,
-              color: isUser ? cs.onPrimary : cs.onSurfaceVariant,
-            ),
-          ),
+        // 移除顶部的复制按钮，因为 MarkdownContentView 已经包含了复制功能
       ],
     );
   }
@@ -234,6 +213,55 @@ class _TurnBubbleState extends State<TurnBubble> {
         children: widget.turn.thoughtSteps
             .map((step) => _buildStepItem(step, cs))
             .toList(growable: false),
+      ),
+    );
+  }
+
+  Widget _buildExecutionReport(BuildContext context, ColorScheme cs) {
+    final document = widget.turn.renderedDocument!;
+    final metadata = document.metadata;
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        key: ValueKey('execution-report-${widget.turn.messageId}'),
+        initiallyExpanded: false, // 默认折叠
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 4),
+        title: Row(
+          children: [
+            Icon(
+              metadata.success ? Icons.assessment_outlined : Icons.error_outline,
+              size: 14,
+              color: cs.tertiary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              metadata.title,
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.tertiary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${(metadata.durationMs / 1000).toStringAsFixed(1)}s',
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant),
+            ),
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+            child: MarkdownContentView(
+              markdown: document.markdown,
+              textColor: cs.onSurfaceVariant,
+              // 不显示复制按钮，因为这是报告
+              onCopy: null,
+            ),
+          ),
+        ],
       ),
     );
   }

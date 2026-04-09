@@ -106,7 +106,7 @@ class ChatPanel extends StatelessWidget {
         children: [
           const Icon(Icons.chat, size: 18),
           const SizedBox(width: 8),
-          const Expanded(child: Text('Agent 对话')),
+          const Expanded(child: Text('小微同学')),
           if (turns.isNotEmpty) ...[
             IconButton(
               icon: Icon(

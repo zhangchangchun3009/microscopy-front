@@ -313,6 +313,37 @@ class ChatSessionController extends ChangeNotifier {
           _logWs('dispatch', 'turn_end -> busy=false, turn=${turn.messageId}');
         }
         break;
+      case 'execution_snapshot':
+        if (turn != null) {
+          final snapshot = data['payload'] as Map<String, dynamic>?;
+          if (snapshot != null) {
+            _logWs('dispatch', 'execution_snapshot -> ${snapshot['tool_executions']?.length ?? 0} tools');
+            // 将快照信息添加到思考步骤中
+            final toolExecutions = snapshot['tool_executions'] as List<dynamic>?;
+            if (toolExecutions != null && toolExecutions.isNotEmpty) {
+              final summary = _formatExecutionSnapshot(snapshot);
+              turn.addThoughtStep('📊 $summary');
+            }
+          }
+        }
+        break;
+      case 'render_complete':
+        if (turn != null) {
+          final documentData = data['document'] as Map<String, dynamic>?;
+          if (documentData != null) {
+            try {
+              final document = RenderedDocument.fromJson(documentData);
+              turn.setRenderedDocument(document);
+              _logWs('dispatch', 'render_complete -> "${document.metadata.title}"');
+
+              // 不要覆盖 LLM 的总结
+              // 操作报告将作为独立的 UI 元素显示
+            } catch (e) {
+              _logWs('error', 'render_complete 解析失败: $e');
+            }
+          }
+        }
+        break;
       default:
         _logWs('unknown_type', 'type=$type, payload=$data');
         break;
@@ -372,6 +403,31 @@ class ChatSessionController extends ChangeNotifier {
   void _appendStatus(String msg) {
     final statusMsg = ChatMsg(role: MsgRole.status, text: msg);
     _messages.add(statusMsg);
+  }
+
+  /// 格式化执行快照为可读文本。
+  String _formatExecutionSnapshot(Map<String, dynamic> snapshot) {
+    final sb = StringBuffer();
+    final status = snapshot['status'] as Map<String, dynamic>?;
+    final statusText = status?['type'] == 'Success' ? '✅ 成功' : '⚠️ 部分成功';
+    final durationMs = snapshot['duration_ms'] as int? ?? 0;
+    final durationSec = (durationMs / 1000).toStringAsFixed(1);
+
+    sb.writeln('$statusText (${durationSec}s)');
+
+    final toolExecutions = snapshot['tool_executions'] as List<dynamic>?;
+    if (toolExecutions != null) {
+      for (final execution in toolExecutions) {
+        final exec = execution as Map<String, dynamic>;
+        final toolName = exec['tool_name'] as String? ?? 'unknown';
+        final success = exec['success'] as bool? ?? false;
+        final icon = success ? '✓' : '✗';
+        final toolDuration = ((exec['duration_ms'] as int? ?? 0) / 1000).toStringAsFixed(2);
+        sb.write('  $icon $toolName (${toolDuration}s)');
+      }
+    }
+
+    return sb.toString().trim();
   }
 
   /// 输出 WebSocket 协议调试日志，帮助定位后端协议与前端解析是否一致。
