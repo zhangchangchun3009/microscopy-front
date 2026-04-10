@@ -21,6 +21,8 @@ class ChatSessionController extends ChangeNotifier {
 
   bool _wsConnected = false;
   bool _agentBusy = false;
+  final List<SystemMessage> _systemMessages = [];
+  String? _currentMessageId;
   // 调试开关：仅在 Debug 模式输出 WS 原始/解析日志，便于协议联调排查。
   final bool _enableWsDebugLog = kDebugMode;
   bool _protocolMismatchWarned = false;
@@ -39,6 +41,12 @@ class ChatSessionController extends ChangeNotifier {
 
   /// Agent 是否处于处理中。
   bool get agentBusy => _agentBusy;
+
+  /// 系统消息列表（只读视图）
+  List<SystemMessage> get systemMessages => List.unmodifiable(_systemMessages);
+
+  /// 当前正在执行的 message_id
+  String? get currentMessageId => _currentMessageId;
 
   /// 建立到给定 [url] 的 WebSocket 连接。
   ///
@@ -141,6 +149,29 @@ class ChatSessionController extends ChangeNotifier {
     }
     turn.isThinkingExpanded = !turn.isThinkingExpanded;
     notifyListeners();
+  }
+
+  /// 追加系统消息
+  void _appendSystemMessage(String content, SystemMessageType type) {
+    _systemMessages.add(SystemMessage(
+      content: content,
+      time: DateTime.now(),
+      type: type,
+    ));
+    notifyListeners();
+  }
+
+  /// 取消当前回合
+  void cancelCurrentTurn() {
+    if (_agentBusy && _currentMessageId != null) {
+      final payload = {
+        'type': 'cancel',
+        'message_id': _currentMessageId,
+      };
+      _channel?.sink.add(jsonEncode(payload));
+      _appendSystemMessage('收到取消信号，请稍等', SystemMessageType.info);
+      notifyListeners();
+    }
   }
 
   /// 将 turn 列表格式化为可复制文本。
@@ -252,6 +283,7 @@ class ChatSessionController extends ChangeNotifier {
     switch (type) {
       case 'turn_start':
         if (turn != null) {
+          _currentMessageId = messageId;
           _agentBusy = true;
           _logWs('dispatch', 'turn_start -> busy=true, turn=${turn.messageId}');
         }
@@ -307,10 +339,18 @@ class ChatSessionController extends ChangeNotifier {
         break;
       case 'turn_end':
         if (turn != null) {
-          turn.finish();
-          _agentBusy = false;
-          _appendTurnToMessages(turn);
-          _logWs('dispatch', 'turn_end -> busy=false, turn=${turn.messageId}');
+          final status = (data['status'] as String? ?? '').toLowerCase();
+          if (status == 'cancelled') {
+            _agentBusy = false;
+            _appendSystemMessage('用户已取消操作', SystemMessageType.success);
+            _logWs('dispatch', 'turn_end -> cancelled, busy=false');
+          } else {
+            turn.finish();
+            _agentBusy = false;
+            _appendTurnToMessages(turn);
+            _logWs('dispatch', 'turn_end -> busy=false, turn=${turn.messageId}');
+          }
+          _currentMessageId = null;
         }
         break;
       case 'execution_snapshot':
@@ -486,6 +526,18 @@ class ChatSessionController extends ChangeNotifier {
       '后端协议不匹配：收到 "$type" 但缺少 message_id。'
       '当前前端仅支持 turn-step 协议，请检查 microclaw WebSocket 事件序列化实现。',
     );
+  }
+
+  /// 仅供测试：追加系统消息
+  @visibleForTesting
+  void appendSystemMessageForTest(String content, SystemMessageType type) {
+    _appendSystemMessage(content, type);
+  }
+
+  /// 仅供测试：设置当前 message_id
+  @visibleForTesting
+  void setCurrentMessageIdForTest(String? messageId) {
+    _currentMessageId = messageId;
   }
 
   @override

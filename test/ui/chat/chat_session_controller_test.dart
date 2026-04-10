@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:microscope_app/ui/chat/chat_session_controller.dart';
+import 'package:microscope_app/ui/chat/chat_models.dart';
 import 'package:microscope_app/ui/chat/chat_turn_models.dart';
 
 void main() {
@@ -176,6 +177,35 @@ void main() {
         }),
         isEmpty,
       );
+    });
+  });
+
+  group('ChatSessionController', () {
+    test('should append system message to list', () {
+      final controller = ChatSessionController();
+      final initialCount = controller.systemMessages.length;
+
+      controller.appendSystemMessageForTest(
+        'Test system message',
+        SystemMessageType.info,
+      );
+
+      expect(controller.systemMessages.length, initialCount + 1);
+      expect(controller.systemMessages.last.content, 'Test system message');
+      expect(controller.systemMessages.last.type, SystemMessageType.info);
+
+      controller.dispose();
+    });
+
+    test('should track current message id', () {
+      final controller = ChatSessionController();
+      expect(controller.currentMessageId, null);
+
+      controller.setCurrentMessageIdForTest('msg-123');
+
+      expect(controller.currentMessageId, 'msg-123');
+
+      controller.dispose();
     });
   });
 }
