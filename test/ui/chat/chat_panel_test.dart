@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:microscope_app/ui/chat/chat_panel.dart';
+import 'package:microscope_app/ui/chat/chat_session_controller.dart';
+import 'package:microscope_app/ui/chat/chat_models.dart';
 import 'package:microscope_app/ui/chat/chat_turn_models.dart';
 
 void main() {
@@ -16,6 +18,7 @@ void main() {
           home: Scaffold(
             body: ChatPanel(
               turns: [assistantTurn],
+              systemMessages: const [],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -25,6 +28,7 @@ void main() {
               onTogglePlainTextMode: () {},
               onCopyAllMessages: () {},
               onSendMessage: (_) {},
+              onCancel: () {},
             ),
           ),
         ),
@@ -44,6 +48,7 @@ void main() {
           home: Scaffold(
             body: ChatPanel(
               turns: [userTurn],
+              systemMessages: const [],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -53,6 +58,7 @@ void main() {
               onTogglePlainTextMode: () {},
               onCopyAllMessages: () {},
               onSendMessage: (_) {},
+              onCancel: () {},
             ),
           ),
         ),
@@ -68,6 +74,7 @@ void main() {
           home: Scaffold(
             body: ChatPanel(
               turns: const [],
+              systemMessages: const [],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -77,6 +84,7 @@ void main() {
               onTogglePlainTextMode: () {},
               onCopyAllMessages: () {},
               onSendMessage: (_) {},
+              onCancel: () {},
             ),
           ),
         ),
@@ -95,6 +103,7 @@ void main() {
           home: Scaffold(
             body: ChatPanel(
               turns: const [],
+              systemMessages: const [],
               inputController: inputController,
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -104,6 +113,7 @@ void main() {
               onTogglePlainTextMode: () {},
               onCopyAllMessages: () {},
               onSendMessage: (text) => sentText = text,
+              onCancel: () {},
             ),
           ),
         ),
@@ -134,6 +144,7 @@ void main() {
           home: Scaffold(
             body: ChatPanel(
               turns: const [],
+              systemMessages: const [],
               inputController: inputController,
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -143,6 +154,7 @@ void main() {
               onTogglePlainTextMode: () {},
               onCopyAllMessages: () {},
               onSendMessage: (text) => sentText = text,
+              onCancel: () {},
             ),
           ),
         ),
@@ -158,6 +170,133 @@ void main() {
       await tester.pump();
 
       expect(sentText, 'mac 快捷键发送');
+    });
+  });
+
+  group('ChatPanel with System Messages', () {
+    late ChatSessionController controller;
+
+    setUp(() {
+      controller = ChatSessionController();
+    });
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    testWidgets('displays system messages before chat turns', (tester) async {
+      // Add a system message
+      controller.appendSystemMessageForTest('Test system message', SystemMessageType.info);
+
+      final assistantTurn = ChatTurn(messageId: 'a1', role: TurnRole.assistant)
+        ..updateContent('Hello')
+        ..finish();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatPanel(
+              turns: [assistantTurn],
+              systemMessages: controller.systemMessages,
+              inputController: TextEditingController(),
+              scrollController: ScrollController(),
+              plainTextMode: false,
+              agentBusy: false,
+              wsConnected: true,
+              plainTextTranscript: '',
+              onTogglePlainTextMode: () {},
+              onCopyAllMessages: () {},
+              onSendMessage: (text) {},
+              onCancel: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Test system message'), findsOneWidget);
+      expect(find.text('Hello'), findsOneWidget);
+    });
+
+    testWidgets('shows empty state when both lists are empty', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatPanel(
+              turns: const [],
+              systemMessages: const [],
+              inputController: TextEditingController(),
+              scrollController: ScrollController(),
+              plainTextMode: false,
+              agentBusy: false,
+              wsConnected: true,
+              plainTextTranscript: '',
+              onTogglePlainTextMode: () {},
+              onCopyAllMessages: () {},
+              onSendMessage: (text) {},
+              onCancel: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('发送消息开始对话'), findsOneWidget);
+    });
+
+    testWidgets('does not show empty state with only system messages', (tester) async {
+      controller.appendSystemMessageForTest('System message only', SystemMessageType.info);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatPanel(
+              turns: const [],
+              systemMessages: controller.systemMessages,
+              inputController: TextEditingController(),
+              scrollController: ScrollController(),
+              plainTextMode: false,
+              agentBusy: false,
+              wsConnected: true,
+              plainTextTranscript: '',
+              onTogglePlainTextMode: () {},
+              onCopyAllMessages: () {},
+              onSendMessage: (text) {},
+              onCancel: () {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('发送消息开始对话'), findsNothing);
+      expect(find.text('System message only'), findsOneWidget);
+    });
+
+    testWidgets('shows header buttons when only system messages exist', (tester) async {
+      controller.appendSystemMessageForTest('System message', SystemMessageType.info);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatPanel(
+              turns: const [],
+              systemMessages: controller.systemMessages,
+              inputController: TextEditingController(),
+              scrollController: ScrollController(),
+              plainTextMode: false,
+              agentBusy: false,
+              wsConnected: true,
+              plainTextTranscript: '',
+              onTogglePlainTextMode: () {},
+              onCopyAllMessages: () {},
+              onSendMessage: (text) {},
+              onCancel: () {},
+            ),
+          ),
+        ),
+      );
+
+      // Should show view toggle and copy buttons when system messages exist
+      expect(find.byIcon(Icons.text_snippet), findsOneWidget);
+      expect(find.byIcon(Icons.copy_all), findsOneWidget);
     });
   });
 }
