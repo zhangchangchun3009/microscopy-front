@@ -181,6 +181,11 @@ class ChatSessionController extends ChangeNotifier {
   String formatMessagesForCopy() {
     final segments = <({DateTime at, String body})>[];
 
+    // 添加系统消息到可复制文本
+    for (final msg in _systemMessages) {
+      segments.add((at: msg.time, body: '[系统消息] ${msg.content}\n'));
+    }
+
     for (final turn in _turns) {
       final body = _turnBlockForPlaintextCopy(turn);
       if (body.isEmpty) {
