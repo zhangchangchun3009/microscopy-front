@@ -31,6 +31,7 @@ class ChatPanel extends StatelessWidget {
     required this.onTogglePlainTextMode,
     required this.onCopyAllMessages,
     required this.onSendMessage,
+    required this.onCancel,
   });
 
   /// 对话 turn 列表。
@@ -65,6 +66,9 @@ class ChatPanel extends StatelessWidget {
 
   /// 发送当前输入消息文本。
   final ValueChanged<String> onSendMessage;
+
+  /// 取消当前正在执行的回合。
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -110,6 +114,7 @@ class ChatPanel extends StatelessWidget {
           wsConnected: wsConnected,
           agentBusy: agentBusy,
           onSendMessage: onSendMessage,
+          onCancel: onCancel,
         ),
       ],
     );
@@ -125,7 +130,7 @@ class ChatPanel extends StatelessWidget {
           const Icon(Icons.chat, size: 18),
           const SizedBox(width: 8),
           const Expanded(child: Text('小微同学')),
-          if (turns.isNotEmpty) ...[
+          if (turns.isNotEmpty || systemMessages.isNotEmpty) ...[
             IconButton(
               icon: Icon(
                 plainTextMode ? Icons.chat_bubble : Icons.text_snippet,
@@ -182,6 +187,7 @@ class _ResizableChatComposer extends StatefulWidget {
     required this.wsConnected,
     required this.agentBusy,
     required this.onSendMessage,
+    required this.onCancel,
   });
 
   final ColorScheme colorScheme;
@@ -189,6 +195,7 @@ class _ResizableChatComposer extends StatefulWidget {
   final bool wsConnected;
   final bool agentBusy;
   final ValueChanged<String> onSendMessage;
+  final VoidCallback onCancel;
 
   @override
   State<_ResizableChatComposer> createState() => _ResizableChatComposerState();
@@ -285,8 +292,11 @@ class _ResizableChatComposerState extends State<_ResizableChatComposer> {
                         minLines: null,
                         keyboardType: TextInputType.multiline,
                         textAlignVertical: TextAlignVertical.top,
+                        enabled: !widget.agentBusy,
                         decoration: InputDecoration(
-                          hintText: '输入指令…（Ctrl/Command+Enter 发送）',
+                          hintText: widget.agentBusy
+                              ? '正在执行...'
+                              : '输入指令…（Ctrl/Command+Enter 发送）',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -306,9 +316,16 @@ class _ResizableChatComposerState extends State<_ResizableChatComposer> {
                 IconButton.filled(
                   onPressed: widget.wsConnected && !widget.agentBusy
                       ? () => widget.onSendMessage(widget.inputController.text)
+                      : (widget.agentBusy && widget.wsConnected
+                          ? widget.onCancel
+                          : null),
+                  icon: Icon(widget.agentBusy ? Icons.stop : Icons.send),
+                  style: widget.agentBusy
+                      ? IconButton.styleFrom(
+                          backgroundColor: cs.error,
+                        )
                       : null,
-                  icon: const Icon(Icons.send),
-                  tooltip: '发送（Ctrl+Enter / Command+Enter）',
+                  tooltip: widget.agentBusy ? '停止执行' : '发送（Ctrl+Enter / Command+Enter）',
                 ),
               ],
             ),

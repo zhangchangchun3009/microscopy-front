@@ -287,6 +287,7 @@ class _HomePageState extends State<HomePage> {
               setState(() => _plainTextMode = !_plainTextMode),
           onCopyAllMessages: _copyAllMessages,
           onSendMessage: _sendMessage,
+          onCancel: _chatSession.cancelCurrentTurn,
         ),
       ),
     );
