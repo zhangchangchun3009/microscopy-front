@@ -33,3 +33,59 @@ class ChatMsg {
   /// 工具参数（仅工具调用消息使用）。
   final Map<String, dynamic>? toolArgs;
 }
+
+/// System message types for notifications
+enum SystemMessageType {
+  info,      // 一般信息
+  success,   // 成功操作
+  warning,   // 警告
+  progress,  // 进度更新
+}
+
+/// System message embedded in conversation flow
+class SystemMessage {
+  /// The message content text
+  final String content;
+
+  /// When the message was created
+  final DateTime time;
+
+  /// The type/category of the system message
+  final SystemMessageType type;
+
+  /// Creates a new system message
+  const SystemMessage({
+    required this.content,
+    required this.time,
+    required this.type,
+  });
+
+  /// Creates a copy of this message with the given fields replaced
+  SystemMessage copyWith({
+    String? content,
+    DateTime? time,
+    SystemMessageType? type,
+  }) {
+    return SystemMessage(
+      content: content ?? this.content,
+      time: time ?? this.time,
+      type: type ?? this.type,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SystemMessage &&
+          runtimeType == other.runtimeType &&
+          content == other.content &&
+          time == other.time &&
+          type == other.type;
+
+  @override
+  int get hashCode => content.hashCode ^ time.hashCode ^ type.hashCode;
+
+  @override
+  String toString() =>
+      'SystemMessage(content: $content, time: $time, type: $type)';
+}
