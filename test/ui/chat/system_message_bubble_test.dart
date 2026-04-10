@@ -62,5 +62,23 @@ void main() {
         expect(find.byIcon(getExpectedIcon(type)), findsOneWidget);
       }
     });
+
+    testWidgets('should handle long text content', (tester) async {
+      final longMessage = SystemMessage(
+        content: 'This is a very long system message that should be truncated with ellipsis when it exceeds the maximum number of lines allowed',
+        time: DateTime.now(),
+        type: SystemMessageType.info,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SystemMessageBubble(message: longMessage),
+          ),
+        ),
+      );
+
+      expect(find.text('This is a very long system message that should be truncated with ellipsis when it exceeds the maximum number of lines allowed'), findsOneWidget);
+    });
   });
 }
