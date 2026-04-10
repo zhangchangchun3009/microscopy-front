@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'chat_models.dart';
 import 'chat_turn_models.dart';
+import 'system_message_bubble.dart';
 import 'turn_bubble.dart';
 
 /// 右侧聊天面板组件。
@@ -12,12 +14,14 @@ class ChatPanel extends StatelessWidget {
   ///
   /// 主要参数：
   /// - [turns] 当前对话 turn 列表（用户和助手消息）；
+  /// - [systemMessages] 系统消息列表（通知、警告、进度更新等）；
   /// - [inputController]/[scrollController] 由上层状态持有，确保折叠/展开后状态连续；
   /// - [plainTextMode] 控制气泡视图与纯文本视图切换；
   /// - [onSendMessage]/[onTogglePlainTextMode]/[onCopyAllMessages] 由上层注入行为。
   const ChatPanel({
     super.key,
     required this.turns,
+    required this.systemMessages,
     required this.inputController,
     required this.scrollController,
     required this.plainTextMode,
@@ -31,6 +35,9 @@ class ChatPanel extends StatelessWidget {
 
   /// 对话 turn 列表。
   final List<ChatTurn> turns;
+
+  /// 系统消息列表。
+  final List<SystemMessage> systemMessages;
 
   /// 输入框控制器。
   final TextEditingController inputController;
@@ -66,7 +73,7 @@ class ChatPanel extends StatelessWidget {
       children: [
         _buildHeader(cs),
         Expanded(
-          child: turns.isEmpty
+          child: turns.isEmpty && systemMessages.isEmpty
               ? Center(
                   child: Text(
                     '发送消息开始对话',
@@ -79,11 +86,22 @@ class ChatPanel extends StatelessWidget {
                   key: const ValueKey('chat-message-list'),
                   controller: scrollController,
                   padding: const EdgeInsets.all(12),
-                  itemCount: turns.length,
-                  itemBuilder: (context, i) => TurnBubble(
-                    key: ValueKey('turn-${turns[i].messageId}-$i'),
-                    turn: turns[i],
-                  ),
+                  itemCount: turns.length + systemMessages.length,
+                  itemBuilder: (context, i) {
+                    // 系统消息显示在前面
+                    if (i < systemMessages.length) {
+                      return SystemMessageBubble(
+                        key: ValueKey('system-msg-${systemMessages[i].time}-$i'),
+                        message: systemMessages[i],
+                      );
+                    }
+                    // 对话消息显示在后面
+                    final turnIndex = i - systemMessages.length;
+                    return TurnBubble(
+                      key: ValueKey('turn-${turns[turnIndex].messageId}-$turnIndex'),
+                      turn: turns[turnIndex],
+                    );
+                  },
                 ),
         ),
         _ResizableChatComposer(

@@ -276,6 +276,7 @@ class _HomePageState extends State<HomePage> {
         ),
         rightChatPane: ChatPanel(
           turns: _chatSession.turns,
+          systemMessages: _chatSession.systemMessages,
           inputController: _inputCtrl,
           scrollController: _scrollCtrl,
           plainTextMode: _plainTextMode,
