@@ -92,18 +92,18 @@ class ChatPanel extends StatelessWidget {
                   padding: const EdgeInsets.all(12),
                   itemCount: turns.length + systemMessages.length,
                   itemBuilder: (context, i) {
-                    // 系统消息显示在前面
-                    if (i < systemMessages.length) {
-                      return SystemMessageBubble(
-                        key: ValueKey('system-msg-${systemMessages[i].time}-$i'),
-                        message: systemMessages[i],
+                    // 对话消息显示在前面
+                    if (i < turns.length) {
+                      return TurnBubble(
+                        key: ValueKey('turn-${turns[i].messageId}-$i'),
+                        turn: turns[i],
                       );
                     }
-                    // 对话消息显示在后面
-                    final turnIndex = i - systemMessages.length;
-                    return TurnBubble(
-                      key: ValueKey('turn-${turns[turnIndex].messageId}-$turnIndex'),
-                      turn: turns[turnIndex],
+                    // 系统消息显示在最后
+                    final sysIndex = i - turns.length;
+                    return SystemMessageBubble(
+                      key: ValueKey('system-msg-${systemMessages[sysIndex].time}-$sysIndex'),
+                      message: systemMessages[sysIndex],
                     );
                   },
                 ),

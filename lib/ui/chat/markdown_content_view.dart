@@ -87,6 +87,7 @@ class _MarkdownContentViewState extends State<MarkdownContentView> {
           ),
         // Markdown 内容
         MarkdownBody(
+          selectable: true,
           data: widget.markdown,
           styleSheet: MarkdownStyleSheet(
             // 基础文本样式

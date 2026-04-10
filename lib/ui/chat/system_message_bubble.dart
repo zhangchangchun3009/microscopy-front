@@ -32,26 +32,30 @@ class SystemMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    Color backgroundColor;
-    IconData icon;
+    // 使用固定浅色背景，不依赖主题色，确保在深色/浅色主题下都不显眼
+    final Color backgroundColor;
+    final Color iconColor;
+    final IconData icon;
 
     switch (message.type) {
       case SystemMessageType.info:
-        backgroundColor = cs.primaryContainer.withValues(alpha: 0.6);
+        backgroundColor = Colors.grey.shade200.withValues(alpha: 0.35);
+        iconColor = Colors.grey.shade600;
         icon = Icons.info_outline;
         break;
       case SystemMessageType.success:
-        backgroundColor = cs.tertiaryContainer.withValues(alpha: 0.6);
+        backgroundColor = Colors.green.shade200.withValues(alpha: 0.35);
+        iconColor = Colors.green.shade700;
         icon = Icons.check_circle_outline;
         break;
       case SystemMessageType.warning:
-        backgroundColor = cs.errorContainer.withValues(alpha: 0.6);
+        backgroundColor = Colors.orange.shade200.withValues(alpha: 0.35);
+        iconColor = Colors.orange.shade700;
         icon = Icons.warning_outlined;
         break;
       case SystemMessageType.progress:
-        backgroundColor = cs.surfaceContainerHighest.withValues(alpha: 0.6);
+        backgroundColor = Colors.grey.shade200.withValues(alpha: 0.35);
+        iconColor = Colors.grey.shade600;
         icon = Icons.sync_outlined;
         break;
     }
@@ -70,7 +74,7 @@ class SystemMessageBubble extends StatelessWidget {
             Icon(
               icon,
               size: 12,
-              color: Colors.grey.shade700,
+              color: iconColor,
               semanticLabel: _getSemanticLabel(message.type),
             ),
             const SizedBox(width: 4.0),
@@ -79,7 +83,7 @@ class SystemMessageBubble extends StatelessWidget {
                 message.content,
                 style: TextStyle(
                   fontSize: 12.0,
-                  color: Colors.grey.shade700,
+                  color: Colors.grey.shade600,
                 ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 3,
