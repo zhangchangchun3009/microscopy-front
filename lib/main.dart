@@ -230,7 +230,35 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('显微镜智能助手'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('显微镜智能助手'),
+            if (_chatSession.deviceId != null) ...[
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(
+                    ClipboardData(text: _chatSession.deviceId!),
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('已复制设备 ID'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                },
+                child: Text(
+                  'ID: ${_chatSession.deviceId}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey,
+                        fontSize: 11,
+                      ),
+                ),
+              ),
+            ],
+          ],
+        ),
         centerTitle: false,
         actions: [
           Padding(
@@ -275,8 +303,7 @@ class _HomePageState extends State<HomePage> {
           magnification: _magnification,
         ),
         rightChatPane: ChatPanel(
-          turns: _chatSession.turns,
-          systemMessages: _chatSession.systemMessages,
+          displayTimeline: _chatSession.displayTimeline,
           inputController: _inputCtrl,
           scrollController: _scrollCtrl,
           plainTextMode: _plainTextMode,

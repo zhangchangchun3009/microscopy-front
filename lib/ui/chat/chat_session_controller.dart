@@ -22,10 +22,15 @@ class ChatSessionController extends ChangeNotifier {
   bool _wsConnected = false;
   bool _agentBusy = false;
   final List<SystemMessage> _systemMessages = [];
+  /// 纯展示用：按事件产生顺序追加，ChatPanel 直接消费此列表渲染。
+  final List<TimelineItem> _displayTimeline = [];
   String? _currentMessageId;
   // 调试开关：仅在 Debug 模式输出 WS 原始/解析日志，便于协议联调排查。
   final bool _enableWsDebugLog = kDebugMode;
   bool _protocolMismatchWarned = false;
+
+  /// 设备 ID（从 WebSocket device_info 事件获取）
+  String? deviceId;
 
   /// 当前消息列表（只读视图）。
   List<ChatMsg> get messages => List.unmodifiable(_messages);
@@ -44,6 +49,9 @@ class ChatSessionController extends ChangeNotifier {
 
   /// 系统消息列表（只读视图）
   List<SystemMessage> get systemMessages => List.unmodifiable(_systemMessages);
+
+  /// 展示用时间线（turn 与系统消息按产生顺序排列，只读视图）。
+  List<TimelineItem> get displayTimeline => List.unmodifiable(_displayTimeline);
 
   /// 当前正在执行的 message_id
   String? get currentMessageId => _currentMessageId;
@@ -116,6 +124,7 @@ class ChatSessionController extends ChangeNotifier {
     userTurn.updateContent(normalized);
     userTurn.finish();
     _turns.add(userTurn);
+    _displayTimeline.add(TimelineTurn(userTurn));
 
     _agentBusy = true;
     final payload = _buildOutboundMessagePayload(normalized, roiNorm: roiNorm);
@@ -153,11 +162,13 @@ class ChatSessionController extends ChangeNotifier {
 
   /// 追加系统消息
   void _appendSystemMessage(String content, SystemMessageType type) {
-    _systemMessages.add(SystemMessage(
+    final msg = SystemMessage(
       content: content,
       time: DateTime.now(),
       type: type,
-    ));
+    );
+    _systemMessages.add(msg);
+    _displayTimeline.add(TimelineSystemMessage(msg));
     notifyListeners();
   }
 
@@ -389,6 +400,12 @@ class ChatSessionController extends ChangeNotifier {
           }
         }
         break;
+      case 'device_info':
+        deviceId = data['device_id'] as String?;
+        if (deviceId != null) {
+          notifyListeners();
+        }
+        break;
       default:
         _logWs('unknown_type', 'type=$type, payload=$data');
         break;
@@ -403,6 +420,7 @@ class ChatSessionController extends ChangeNotifier {
     final created = ChatTurn(messageId: messageId, role: TurnRole.assistant);
     _turnByMessageId[messageId] = created;
     _turns.add(created);
+    _displayTimeline.add(TimelineTurn(created));
     return created;
   }
 
