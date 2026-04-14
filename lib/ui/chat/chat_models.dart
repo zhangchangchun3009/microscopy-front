@@ -1,3 +1,5 @@
+import 'chat_turn_models.dart';
+
 /// 聊天消息角色类型。
 enum MsgRole { user, assistant, toolCall, toolResult, error, status }
 
@@ -88,4 +90,28 @@ class SystemMessage {
   @override
   String toString() =>
       'SystemMessage(content: $content, time: $time, type: $type)';
+}
+
+/// 时间线条目：将 turn 和系统消息统一到同一有序列表中。
+///
+/// 条目按产生时间自然追加，无需额外排序。
+sealed class TimelineItem {
+  /// 条目产生时间。
+  DateTime get createdAt;
+}
+
+/// 时间线中的对话 turn。
+class TimelineTurn extends TimelineItem {
+  TimelineTurn(this.turn) : createdAt = turn.createdAt;
+  final ChatTurn turn;
+  @override
+  final DateTime createdAt;
+}
+
+/// 时间线中的系统消息。
+class TimelineSystemMessage extends TimelineItem {
+  TimelineSystemMessage(this.message) : createdAt = message.time;
+  final SystemMessage message;
+  @override
+  final DateTime createdAt;
 }

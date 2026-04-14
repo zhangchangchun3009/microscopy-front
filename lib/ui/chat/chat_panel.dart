@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'chat_models.dart';
-import 'chat_turn_models.dart';
 import 'system_message_bubble.dart';
 import 'turn_bubble.dart';
 
@@ -13,15 +12,13 @@ class ChatPanel extends StatelessWidget {
   /// 创建聊天面板。
   ///
   /// 主要参数：
-  /// - [turns] 当前对话 turn 列表（用户和助手消息）；
-  /// - [systemMessages] 系统消息列表（通知、警告、进度更新等）；
+  /// - [displayTimeline] 按时间排列的展示时间线（turn 与系统消息混合）；
   /// - [inputController]/[scrollController] 由上层状态持有，确保折叠/展开后状态连续；
   /// - [plainTextMode] 控制气泡视图与纯文本视图切换；
   /// - [onSendMessage]/[onTogglePlainTextMode]/[onCopyAllMessages] 由上层注入行为。
   const ChatPanel({
     super.key,
-    required this.turns,
-    required this.systemMessages,
+    required this.displayTimeline,
     required this.inputController,
     required this.scrollController,
     required this.plainTextMode,
@@ -34,11 +31,8 @@ class ChatPanel extends StatelessWidget {
     required this.onCancel,
   });
 
-  /// 对话 turn 列表。
-  final List<ChatTurn> turns;
-
-  /// 系统消息列表。
-  final List<SystemMessage> systemMessages;
+  /// 展示用时间线（turn 与系统消息按产生顺序排列）。
+  final List<TimelineItem> displayTimeline;
 
   /// 输入框控制器。
   final TextEditingController inputController;
@@ -77,7 +71,7 @@ class ChatPanel extends StatelessWidget {
       children: [
         _buildHeader(cs),
         Expanded(
-          child: turns.isEmpty && systemMessages.isEmpty
+          child: displayTimeline.isEmpty
               ? Center(
                   child: Text(
                     '发送消息开始对话',
@@ -86,27 +80,7 @@ class ChatPanel extends StatelessWidget {
                 )
               : plainTextMode
               ? _buildPlainTextView(cs)
-              : ListView.builder(
-                  key: const ValueKey('chat-message-list'),
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(12),
-                  itemCount: turns.length + systemMessages.length,
-                  itemBuilder: (context, i) {
-                    // 对话消息显示在前面
-                    if (i < turns.length) {
-                      return TurnBubble(
-                        key: ValueKey('turn-${turns[i].messageId}-$i'),
-                        turn: turns[i],
-                      );
-                    }
-                    // 系统消息显示在最后
-                    final sysIndex = i - turns.length;
-                    return SystemMessageBubble(
-                      key: ValueKey('system-msg-${systemMessages[sysIndex].time}-$sysIndex'),
-                      message: systemMessages[sysIndex],
-                    );
-                  },
-                ),
+              : _buildTimelineListView(),
         ),
         _ResizableChatComposer(
           colorScheme: cs,
@@ -120,6 +94,29 @@ class ChatPanel extends StatelessWidget {
     );
   }
 
+  /// 直接按 displayTimeline 顺序渲染，无需排序。
+  Widget _buildTimelineListView() {
+    return ListView.builder(
+      key: const ValueKey('chat-message-list'),
+      controller: scrollController,
+      padding: const EdgeInsets.all(12),
+      itemCount: displayTimeline.length,
+      itemBuilder: (context, i) {
+        final item = displayTimeline[i];
+        return switch (item) {
+          TimelineTurn(:final turn) => TurnBubble(
+              key: ValueKey('turn-${turn.messageId}'),
+              turn: turn,
+            ),
+          TimelineSystemMessage(:final message) => SystemMessageBubble(
+              key: ValueKey('system-msg-${message.time}-$i'),
+              message: message,
+            ),
+        };
+      },
+    );
+  }
+
   /// 构建聊天面板头部（包含标题、视图切换和复制按钮）
   Widget _buildHeader(ColorScheme cs) {
     return Container(
@@ -130,7 +127,7 @@ class ChatPanel extends StatelessWidget {
           const Icon(Icons.chat, size: 18),
           const SizedBox(width: 8),
           const Expanded(child: Text('小微同学')),
-          if (turns.isNotEmpty || systemMessages.isNotEmpty) ...[
+          if (displayTimeline.isNotEmpty) ...[
             IconButton(
               icon: Icon(
                 plainTextMode ? Icons.chat_bubble : Icons.text_snippet,

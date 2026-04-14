@@ -289,7 +289,7 @@ class ChatSessionController extends ChangeNotifier {
 
     final type = data['type'] as String? ?? '';
     final messageId = data['message_id'] as String?;
-    if (messageId == null && type != 'turn_start') {
+    if (messageId == null && type != 'turn_start' && type != 'device_info') {
       _warnProtocolMismatch(type, data);
       return;
     }
@@ -494,18 +494,34 @@ class ChatSessionController extends ChangeNotifier {
   }
 
   /// 输出 WebSocket 协议调试日志，帮助定位后端协议与前端解析是否一致。
+  ///
+  /// - 自动添加 HH:mm:ss.SSS 时间戳
+  /// - [stage] 为 'raw' 时自动截断到 200 字符（原始 JSON 通常很长）
+  /// - [stage] 为 'parsed' 时自动截断 message 到 300 字符
   void _logWs(String stage, String message) {
     if (!_enableWsDebugLog) {
       return;
     }
-    debugPrint('[WS][$stage] $message');
+    final now = DateTime.now();
+    final ts =
+        '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}:'
+        '${now.second.toString().padLeft(2, '0')}.'
+        '${now.millisecond.toString().padLeft(3, '0')}';
+
+    final display = switch (stage) {
+      'raw' => _truncateForLog(message, max: 200),
+      'parsed' => _truncateForLog(message, max: 300),
+      _ => message,
+    };
+    debugPrint('[$ts][WS][$stage] $display');
   }
 
   String _truncateForLog(String text, {int max = 120}) {
     if (text.length <= max) {
       return text;
     }
-    return '${text.substring(0, max)}...';
+    return '${text.substring(0, max)}... (${text.length} chars)';
   }
 
   /// 解析 WebSocket `tool_call_end` 中的 [result_image_base64]（单张），供对话框预览。

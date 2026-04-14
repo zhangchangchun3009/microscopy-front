@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app_config.dart';
+import 'llm_settings_tab.dart';
 import 'vlm_settings_tab.dart';
 
 /// 连接设置弹窗动作类型。
@@ -52,11 +53,22 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
           });
 
           return AlertDialog(
-            title: const Text('显微镜设置'),
+            title: Row(
+              children: [
+                const Text('显微镜设置'),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: '关闭',
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
             content: SizedBox(
               width: 500,
+              height: 480,
               child: DefaultTabController(
-                length: 2,
+                length: 3,
                 child: Column(
                   mainAxisSize: MainAxisSize.max,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,10 +76,11 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
                     const TabBar(
                       tabs: [
                         Tab(text: '连接设置'),
+                        Tab(text: 'LLM 设置'),
                         Tab(text: 'VLM 设置'),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: TabBarView(
                         children: [
@@ -76,21 +89,23 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
                             children: [
                               Expanded(
                                 child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      TextField(
-                                        controller: hostCtrl,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Pi 主机地址',
-                                          hintText: '10.198.31.242',
-                                          border: OutlineInputBorder(),
-                                          prefixIcon: Icon(Icons.dns),
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        TextField(
+                                          controller: hostCtrl,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Pi 主机地址',
+                                            hintText: '10.198.31.242',
+                                            border: OutlineInputBorder(),
+                                            prefixIcon: Icon(Icons.dns),
+                                          ),
+                                          onChanged: (_) => updatePreview(),
                                         ),
-                                        onChanged: (_) => updatePreview(),
-                                      ),
                                       const SizedBox(height: 12),
                                       Row(
                                         children: [
@@ -200,6 +215,7 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
                                   ),
                                 ),
                               ),
+                              ),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
@@ -220,43 +236,35 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () {
-                                        Navigator.pop(
-                                          ctx,
-                                          ConnectionSettingsDialogResult(
-                                            action:
-                                                ConnectionSettingsAction.cancel,
-                                            draft: draft.copy(),
-                                          ),
-                                        );
-                                      },
-                                      child: const Text('取消'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
                                     child: FilledButton(
                                       onPressed: () {
-                                        Navigator.pop(
-                                          ctx,
-                                          ConnectionSettingsDialogResult(
-                                            action:
-                                                ConnectionSettingsAction.apply,
-                                            draft: draft.copy(),
-                                          ),
-                                        );
+                                        // Save connection settings without closing
+                                        setDialogState(() {
+                                          draft.piHost = hostCtrl.text.trim();
+                                          draft.gatewayPort =
+                                              int.tryParse(gwPortCtrl.text.trim()) ?? draft.gatewayPort;
+                                          draft.microscopyPort =
+                                              int.tryParse(msPortCtrl.text.trim()) ?? draft.microscopyPort;
+                                          draft.wsPath = wsPathCtrl.text.trim();
+                                          draft.videoPath = vidPathCtrl.text.trim();
+                                        });
                                       },
-                                      child: const Text('应用并保存'),
+                                      child: const Text('保存'),
                                     ),
                                   ),
                                 ],
                               ),
                             ],
                           ),
-                          // Tab 2: VLM settings
+                          // Tab 2: LLM settings
+                          LlmSettingsTab(
+                            key: ValueKey('llm:${draft.piHost}:${draft.gatewayPort}'),
+                            gatewayBaseUrl:
+                                'http://${draft.piHost}:${draft.gatewayPort}',
+                          ),
+                          // Tab 3: VLM settings
                           VlmSettingsTab(
-                            key: ValueKey('${draft.piHost}:${draft.gatewayPort}'),
+                            key: ValueKey('vlm:${draft.piHost}:${draft.gatewayPort}'),
                             gatewayBaseUrl:
                                 'http://${draft.piHost}:${draft.gatewayPort}',
                           ),

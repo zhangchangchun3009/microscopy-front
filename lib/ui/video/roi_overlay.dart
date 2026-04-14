@@ -90,6 +90,10 @@ class _RoiOverlayState extends State<RoiOverlay> {
   Offset? _drawStartNorm;
   bool _selected = false;
 
+  /// 跟踪当前触摸指针数量，用于区分单指绘制 vs 多指缩放。
+  int _pointerCount = 0;
+  int? _drawPointerId;
+
   Rect _contentRect(Size stageSize) {
     if (stageSize.width <= 0 ||
         stageSize.height <= 0 ||
@@ -276,16 +280,37 @@ class _RoiOverlayState extends State<RoiOverlay> {
         return Stack(
           children: [
             Positioned.fill(
-              child: GestureDetector(
+              /// 使用 Listener 而非 GestureDetector，避免与父级 Scale 手势
+              /// 在 gesture arena 中竞争。触摸屏上 GestureDetector 的 Pan 会
+              /// 在第一根手指落下时立即认领手势，导致双指缩放无法触发。
+              child: Listener(
                 behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  if (_selected) {
-                    setState(() => _selected = false);
+                onPointerDown: (e) {
+                  _pointerCount++;
+                  if (_pointerCount == 1 && _drawPointerId == null) {
+                    _drawPointerId = e.pointer;
+                    _startDraw(e.localPosition, contentRect);
                   }
                 },
-                onPanStart: (d) => _startDraw(d.localPosition, contentRect),
-                onPanUpdate: (d) => _updateDraw(d.localPosition, contentRect),
-                onPanEnd: (_) => _endDraw(contentRect),
+                onPointerMove: (e) {
+                  if (e.pointer == _drawPointerId && _pointerCount == 1) {
+                    _updateDraw(e.localPosition, contentRect);
+                  }
+                },
+                onPointerUp: (e) {
+                  if (e.pointer == _drawPointerId) {
+                    _endDraw(contentRect);
+                    _drawPointerId = null;
+                  }
+                  _pointerCount--;
+                },
+                onPointerCancel: (e) {
+                  if (e.pointer == _drawPointerId) {
+                    _endDraw(contentRect);
+                    _drawPointerId = null;
+                  }
+                  _pointerCount--;
+                },
               ),
             ),
             if (roiStageRect != null)

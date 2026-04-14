@@ -249,7 +249,7 @@ class _HomePageState extends State<HomePage> {
                   );
                 },
                 child: Text(
-                  'ID: ${_chatSession.deviceId}',
+                  '设备ID: ${_chatSession.deviceId}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Colors.grey,
                         fontSize: 11,

@@ -17,8 +17,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: [assistantTurn],
-              systemMessages: const [],
+              displayTimeline: [TimelineTurn(assistantTurn)],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -47,8 +46,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: [userTurn],
-              systemMessages: const [],
+              displayTimeline: [TimelineTurn(userTurn)],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -73,8 +71,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: const [],
-              systemMessages: const [],
+              displayTimeline: const [],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -102,8 +99,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: const [],
-              systemMessages: const [],
+              displayTimeline: const [],
               inputController: inputController,
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -143,8 +139,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: const [],
-              systemMessages: const [],
+              displayTimeline: const [],
               inputController: inputController,
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -184,20 +179,26 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('displays system messages before chat turns', (tester) async {
-      // Add a system message
+    testWidgets('displays system messages interleaved with chat turns', (tester) async {
+      // 通过 controller 追加系统消息，displayTimeline 会自动包含
       controller.appendSystemMessageForTest('Test system message', SystemMessageType.info);
 
       final assistantTurn = ChatTurn(messageId: 'a1', role: TurnRole.assistant)
         ..updateContent('Hello')
         ..finish();
 
+      // displayTimeline 中系统消息已由 controller 自动追加，
+      // 手动构造的 turn 需要包装成 TimelineTurn
+      final timeline = [
+        TimelineTurn(assistantTurn),
+        ...controller.displayTimeline,
+      ];
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: [assistantTurn],
-              systemMessages: controller.systemMessages,
+              displayTimeline: timeline,
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -222,8 +223,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: const [],
-              systemMessages: const [],
+              displayTimeline: const [],
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -249,8 +249,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: const [],
-              systemMessages: controller.systemMessages,
+              displayTimeline: controller.displayTimeline,
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
@@ -277,8 +276,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: ChatPanel(
-              turns: const [],
-              systemMessages: controller.systemMessages,
+              displayTimeline: controller.displayTimeline,
               inputController: TextEditingController(),
               scrollController: ScrollController(),
               plainTextMode: false,
