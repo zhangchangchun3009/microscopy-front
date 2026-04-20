@@ -1,4 +1,4 @@
-package com.example.microscope_app
+package com.yingxi.microscope_app
 
 import io.flutter.embedding.android.FlutterActivity
 

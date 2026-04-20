@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../../services/ota_apk_service.dart';
 import 'chat_models.dart';
 import 'chat_turn_models.dart';
 
@@ -31,6 +33,12 @@ class ChatSessionController extends ChangeNotifier {
 
   /// 设备 ID（从 WebSocket device_info 事件获取）
   String? deviceId;
+
+  /// 当前 App 版本号（连接时上报）
+  String? appVersion;
+
+  /// OTA APK 下载服务
+  final OtaApkService _otaApkService = OtaApkService();
 
   /// 当前消息列表（只读视图）。
   List<ChatMsg> get messages => List.unmodifiable(_messages);
@@ -85,6 +93,13 @@ class ChatSessionController extends ChangeNotifier {
       );
       _wsConnected = true;
       _appendStatus('已连接 $url');
+
+      // 上报 App 版本号（供 microclaw OTA 工具使用）
+      _reportAppVersion();
+
+      // 静默请求 OTA 更新检查
+      _channel?.sink.add(jsonEncode({'type': 'ota_check'}));
+
       notifyListeners();
     } catch (e) {
       _channel = null;
@@ -289,7 +304,7 @@ class ChatSessionController extends ChangeNotifier {
 
     final type = data['type'] as String? ?? '';
     final messageId = data['message_id'] as String?;
-    if (messageId == null && type != 'turn_start' && type != 'device_info') {
+    if (messageId == null && type != 'turn_start' && type != 'device_info' && type != 'system_event') {
       _warnProtocolMismatch(type, data);
       return;
     }
@@ -406,6 +421,9 @@ class ChatSessionController extends ChangeNotifier {
           notifyListeners();
         }
         break;
+      case 'system_event':
+        _handleSystemEvent(data);
+        break;
       default:
         _logWs('unknown_type', 'type=$type, payload=$data');
         break;
@@ -466,6 +484,91 @@ class ChatSessionController extends ChangeNotifier {
   void _appendStatus(String msg) {
     final statusMsg = ChatMsg(role: MsgRole.status, text: msg);
     _messages.add(statusMsg);
+  }
+
+  /// 连接成功后上报 App 版本号给 microclaw。
+  Future<void> _reportAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      appVersion = info.version;
+      _channel?.sink.add(jsonEncode({
+        'type': 'device_info',
+        'device_id': '',
+        'app_version': info.version,
+      }));
+      _logWs('ota', 'reported app_version=${info.version}');
+    } catch (e) {
+      debugPrint('[OTA] 获取 App 版本失败: $e');
+    }
+  }
+
+  /// 处理 OTA 系统事件（不显示在聊天中）。
+  void _handleSystemEvent(Map<String, dynamic> data) {
+    final event = data['event'] as String?;
+    switch (event) {
+      case 'ota_apk_update':
+        final url = data['url'] as String?;
+        final sha256 = data['sha256'] as String?;
+        final version = data['version'] as String?;
+        final fileSize = data['file_size'] as int?;
+        if (url != null && sha256 != null && version != null && fileSize != null) {
+          _otaApkService.onResult = (result) {
+            switch (result.state) {
+              case OtaApkState.downloading:
+                _appendSystemMessage(
+                  '正在下载 App 更新 v${result.version}...',
+                  SystemMessageType.progress,
+                );
+              case OtaApkState.downloaded:
+                _appendSystemMessage(
+                  result.message ?? 'App 更新 v${result.version} 已下载',
+                  SystemMessageType.info,
+                );
+              case OtaApkState.installPrompt:
+                _appendSystemMessage(
+                  'App 更新 v${result.version} 已就绪，请在弹出对话框中确认安装',
+                  SystemMessageType.success,
+                );
+              case OtaApkState.checksumFailed:
+                _appendSystemMessage(
+                  'App 更新下载文件校验失败，请稍后重试',
+                  SystemMessageType.warning,
+                );
+              case OtaApkState.downloadFailed:
+                _appendSystemMessage(
+                  result.message ?? 'App 更新下载失败，请稍后重试',
+                  SystemMessageType.warning,
+                );
+            }
+          };
+          _otaApkService.startDownload(
+            url: url,
+            sha256: sha256,
+            version: version,
+            fileSize: fileSize,
+          );
+          _logWs('ota', 'ota_apk_update -> download started v$version');
+        }
+      case 'ota_ready_to_install':
+        _appendSystemMessage(
+          data['message'] as String? ?? '下载完成，系统即将重启更新',
+          SystemMessageType.info,
+        );
+      case 'ota_download_failed':
+        _appendSystemMessage(
+          data['message'] as String? ?? '更新下载失败',
+          SystemMessageType.warning,
+        );
+      case 'flutter_update_available':
+        final version = data['version'] as String?;
+        final msg = version != null
+            ? '有新版本可用 (v$version)，可以对我说"检查更新"'
+            : '有新版本可用，可以对我说"检查更新"';
+        _appendSystemMessage(msg, SystemMessageType.info);
+        _logWs('ota', 'flutter_update_available -> v$version');
+      default:
+        _logWs('system_event', 'unknown event: $event');
+    }
   }
 
   /// 格式化执行快照为可读文本。

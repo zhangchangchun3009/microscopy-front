@@ -83,6 +83,7 @@ class _HomePageState extends State<HomePage> {
   final _inputCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _plainTextMode = false; // 纯文本模式：整段对话为单一可选中块，支持拖选部分复制
+  bool _immersiveMode = false; // 沉浸模式：隐藏 AppBar / 视频 HUD / 聊天头部
 
   @override
   void initState() {
@@ -229,93 +230,116 @@ class _HomePageState extends State<HomePage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('显微镜智能助手'),
-            if (_chatSession.deviceId != null) ...[
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: () {
-                  Clipboard.setData(
-                    ClipboardData(text: _chatSession.deviceId!),
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('已复制设备 ID'),
-                      duration: Duration(seconds: 1),
-                    ),
-                  );
-                },
-                child: Text(
-                  '设备ID: ${_chatSession.deviceId}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                        fontSize: 11,
+      appBar: _immersiveMode
+          ? null
+          : AppBar(
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('显微镜智能助手'),
+                  if (_chatSession.deviceId != null) ...[
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(
+                          ClipboardData(text: _chatSession.deviceId!),
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('已复制设备 ID'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        '设备ID: ${_chatSession.deviceId}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.grey,
+                              fontSize: 11,
+                            ),
                       ),
-                ),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ],
-        ),
-        centerTitle: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.circle,
-                  size: 10,
-                  color: _chatSession.wsConnected
-                      ? Colors.greenAccent
-                      : Colors.red,
+              centerTitle: false,
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        size: 10,
+                        color: _chatSession.wsConnected
+                            ? Colors.greenAccent
+                            : Colors.red,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _chatSession.wsConnected ? '已连接' : '未连接',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  _chatSession.wsConnected ? '已连接' : '未连接',
-                  style: Theme.of(context).textTheme.bodySmall,
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: '重新连接',
+                  onPressed: _connectWs,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  tooltip: '连接设置',
+                  onPressed: _showSettings,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.fullscreen),
+                  tooltip: '沉浸模式',
+                  onPressed: () => setState(() => _immersiveMode = true),
                 ),
               ],
             ),
+      body: Stack(
+        children: [
+          RightChatSplitLayout(
+            leftPane: VideoStage(
+              videoUrl: _config.videoUrl,
+              isVideoLive: _isVideoLive,
+              onToggleLive: () => setState(() => _isVideoLive = !_isVideoLive),
+              onRoiChanged: (roi) => setState(() => _currentRoi = roi),
+              pixelSizeUmPerPx: _pixelSizeUmPerPx,
+              magnification: _magnification,
+              immersiveMode: _immersiveMode,
+            ),
+            rightChatPane: ChatPanel(
+              displayTimeline: _chatSession.displayTimeline,
+              inputController: _inputCtrl,
+              scrollController: _scrollCtrl,
+              plainTextMode: _plainTextMode,
+              agentBusy: _chatSession.agentBusy,
+              wsConnected: _chatSession.wsConnected,
+              plainTextTranscript: _chatSession.formatMessagesForCopy(),
+              onTogglePlainTextMode: () =>
+                  setState(() => _plainTextMode = !_plainTextMode),
+              onCopyAllMessages: _copyAllMessages,
+              onSendMessage: _sendMessage,
+              onCancel: _chatSession.cancelCurrentTurn,
+              immersiveMode: _immersiveMode,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: '重新连接',
-            onPressed: _connectWs,
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: '连接设置',
-            onPressed: _showSettings,
-          ),
+          if (_immersiveMode)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton.filledTonal(
+                icon: const Icon(Icons.fullscreen_exit),
+                tooltip: '退出沉浸模式',
+                onPressed: () => setState(() => _immersiveMode = false),
+              ),
+            ),
         ],
-      ),
-      body: RightChatSplitLayout(
-        leftPane: VideoStage(
-          videoUrl: _config.videoUrl,
-          isVideoLive: _isVideoLive,
-          onToggleLive: () => setState(() => _isVideoLive = !_isVideoLive),
-          onRoiChanged: (roi) => setState(() => _currentRoi = roi),
-          pixelSizeUmPerPx: _pixelSizeUmPerPx,
-          magnification: _magnification,
-        ),
-        rightChatPane: ChatPanel(
-          displayTimeline: _chatSession.displayTimeline,
-          inputController: _inputCtrl,
-          scrollController: _scrollCtrl,
-          plainTextMode: _plainTextMode,
-          agentBusy: _chatSession.agentBusy,
-          wsConnected: _chatSession.wsConnected,
-          plainTextTranscript: _chatSession.formatMessagesForCopy(),
-          onTogglePlainTextMode: () =>
-              setState(() => _plainTextMode = !_plainTextMode),
-          onCopyAllMessages: _copyAllMessages,
-          onSendMessage: _sendMessage,
-          onCancel: _chatSession.cancelCurrentTurn,
-        ),
       ),
     );
   }

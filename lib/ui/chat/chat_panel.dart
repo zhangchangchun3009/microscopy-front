@@ -29,6 +29,7 @@ class ChatPanel extends StatelessWidget {
     required this.onCopyAllMessages,
     required this.onSendMessage,
     required this.onCancel,
+    this.immersiveMode = false,
   });
 
   /// 展示用时间线（turn 与系统消息按产生顺序排列）。
@@ -64,12 +65,15 @@ class ChatPanel extends StatelessWidget {
   /// 取消当前正在执行的回合。
   final VoidCallback onCancel;
 
+  /// 沉浸模式下隐藏头部。
+  final bool immersiveMode;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
-        _buildHeader(cs),
+        if (!immersiveMode) _buildHeader(cs),
         Expanded(
           child: displayTimeline.isEmpty
               ? Center(
@@ -120,7 +124,7 @@ class ChatPanel extends StatelessWidget {
   /// 构建聊天面板头部（包含标题、视图切换和复制按钮）
   Widget _buildHeader(ColorScheme cs) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       color: cs.surfaceContainerHighest,
       child: Row(
         children: [

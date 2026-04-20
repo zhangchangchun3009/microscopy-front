@@ -20,6 +20,8 @@ class VideoStage extends StatefulWidget {
     this.pixelSizeUmPerPx = 10,
     /// `settings_update.magnification`。
     this.magnification = 20,
+    /// 沉浸模式下隐藏顶部 HUD。
+    this.immersiveMode = false,
   });
 
   /// 视频流地址。
@@ -42,6 +44,9 @@ class VideoStage extends StatefulWidget {
 
   /// 物镜倍率。
   final int magnification;
+
+  /// 沉浸模式下隐藏顶部 HUD。
+  final bool immersiveMode;
 
   @override
   State<VideoStage> createState() => _VideoStageState();
@@ -198,29 +203,30 @@ class _VideoStageState extends State<VideoStage> {
       color: Colors.black,
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            color: cs.surfaceContainerHighest,
-            child: Row(
-              children: [
-                const Icon(Icons.videocam, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.videoUrl,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall,
+          if (!widget.immersiveMode)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              color: cs.surfaceContainerHighest,
+              child: Row(
+                children: [
+                  const Icon(Icons.videocam, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.videoUrl,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: Icon(widget.isVideoLive ? Icons.pause : Icons.play_arrow),
-                  iconSize: 20,
-                  tooltip: widget.isVideoLive ? '暂停' : '继续',
-                  onPressed: widget.onToggleLive,
-                ),
-              ],
+                  IconButton(
+                    icon: Icon(widget.isVideoLive ? Icons.pause : Icons.play_arrow),
+                    iconSize: 20,
+                    tooltip: widget.isVideoLive ? '暂停' : '继续',
+                    onPressed: widget.onToggleLive,
+                  ),
+                ],
+              ),
             ),
-          ),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
