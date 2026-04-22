@@ -61,7 +61,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   AppConfig _config = AppConfig();
   bool _configLoaded = false;
   bool _isVideoLive = true;
@@ -88,6 +88,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _chatSession.addListener(_onChatSessionChanged);
     _cancelMicroscopySettingsSub = _microscopySocket.on(
       'settings_update',
@@ -108,6 +109,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cancelMicroscopySettingsSub?.call();
     _chatSession.removeListener(_onChatSessionChanged);
     _chatSession.dispose();
@@ -115,6 +117,16 @@ class _HomePageState extends State<HomePage> {
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 从设置页授权安装权限返回后，自动恢复暂存的 OTA 下载
+      if (_chatSession.hasPendingOtaDownload) {
+        _chatSession.retryPendingOtaDownload();
+      }
+    }
   }
 
   void _onMicroscopySettingsUpdate(dynamic data) {

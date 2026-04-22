@@ -505,6 +505,7 @@ class ChatSessionController extends ChangeNotifier {
   /// 处理 OTA 系统事件（不显示在聊天中）。
   void _handleSystemEvent(Map<String, dynamic> data) {
     final event = data['event'] as String?;
+    debugPrint('[OTA] received system_event: $event');
     switch (event) {
       case 'ota_apk_update':
         final url = data['url'] as String?;
@@ -539,13 +540,32 @@ class ChatSessionController extends ChangeNotifier {
                   result.message ?? 'App 更新下载失败，请稍后重试',
                   SystemMessageType.warning,
                 );
+              case OtaApkState.needInstallPermission:
+                _appendSystemMessage(
+                  result.message ?? '请在设置中允许本应用安装其他应用，然后重新检查更新',
+                  SystemMessageType.warning,
+                );
             }
           };
+          // Skip if already at this version
+          if (appVersion != null && appVersion == version) {
+            _appendSystemMessage('当前已是最新版本 v$version', SystemMessageType.info);
+            break;
+          }
+          // Extract auth headers for the download request
+          final authHeaders = <String, String>{};
+          final auth = data['auth_headers'] as Map<String, dynamic>?;
+          if (auth != null) {
+            auth.forEach((key, value) {
+              if (value is String) authHeaders[key] = value;
+            });
+          }
           _otaApkService.startDownload(
             url: url,
             sha256: sha256,
             version: version,
             fileSize: fileSize,
+            authHeaders: authHeaders,
           );
           _logWs('ota', 'ota_apk_update -> download started v$version');
         }
@@ -682,7 +702,53 @@ class ChatSessionController extends ChangeNotifier {
     _currentMessageId = messageId;
   }
 
-  @override
+  /// 是否有因权限不足而暂存的 OTA 下载任务。
+  bool get hasPendingOtaDownload => _otaApkService.hasPendingDownload;
+
+  /// 授权后恢复暂存的 OTA 下载。返回 true 表示成功启动。
+  Future<bool> retryPendingOtaDownload() async {
+    // 重新绑定回调（可能在上次流程中被清除）
+    _otaApkService.onResult = (result) {
+      switch (result.state) {
+        case OtaApkState.downloading:
+          _appendSystemMessage(
+            '正在下载 App 更新 v${result.version}...',
+            SystemMessageType.progress,
+          );
+        case OtaApkState.downloaded:
+          _appendSystemMessage(
+            result.message ?? 'App 更新 v${result.version} 已下载',
+            SystemMessageType.info,
+          );
+        case OtaApkState.installPrompt:
+          _appendSystemMessage(
+            'App 更新 v${result.version} 已就绪，请在弹出对话框中确认安装',
+            SystemMessageType.success,
+          );
+        case OtaApkState.checksumFailed:
+          _appendSystemMessage(
+            'App 更新下载文件校验失败，请稍后重试',
+            SystemMessageType.warning,
+          );
+        case OtaApkState.downloadFailed:
+          _appendSystemMessage(
+            result.message ?? 'App 更新下载失败，请稍后重试',
+            SystemMessageType.warning,
+          );
+        case OtaApkState.needInstallPermission:
+          _appendSystemMessage(
+            result.message ?? '需要安装权限，请在设置中授权',
+            SystemMessageType.warning,
+          );
+      }
+    };
+    final started = await _otaApkService.retryPendingDownload();
+    if (started) {
+      _logWs('ota', 'retrying pending OTA download after permission grant');
+    }
+    return started;
+  }
+
   void dispose() {
     _wsSub?.cancel();
     _channel?.sink.close();
