@@ -223,12 +223,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       case ConnectionSettingsAction.apply:
         setState(() => _config = result.draft);
         await _config.saveUser();
-        _chatSession.appendStatus('配置已保存到用户文件');
-        _microscopySocket.disconnect();
-        _microscopySocket.connect(
-          'http://${_config.piHost}:${_config.microscopyPort}',
-        );
-        await _connectWs();
+        _chatSession.appendStatus('配置已保存，正在重新连接...');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _microscopySocket.disconnect();
+          _microscopySocket.connect(
+            'http://${_config.piHost}:${_config.microscopyPort}',
+          );
+          _connectWs();
+        });
         break;
     }
   }

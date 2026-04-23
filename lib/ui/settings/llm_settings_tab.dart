@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 /// - API key is never returned by GET; UI treats it as "already configured"
 ///   via `has_api_key`.
 /// - base_url is stored as `custom:<url>` in default_provider on the server.
-/// - Changes to base_url, api_key, model_name require MicroClaw restart.
+/// - All config changes take effect immediately (next message uses new config).
 class LlmSettingsTab extends StatefulWidget {
   final String gatewayBaseUrl;
 
@@ -153,35 +153,9 @@ class _LlmSettingsTabState extends State<LlmSettingsTab> {
         return;
       }
 
-      // Check which fields require restart
-      final respData = jsonDecode(respBody) as Map<String, dynamic>;
-      final restartFields =
-          (respData['restart_required_fields'] as List<dynamic>?) ?? [];
-
-      if (restartFields.isNotEmpty) {
-        final fieldLabels = restartFields.map((f) {
-          switch (f as String) {
-            case 'base_url':
-              return 'API 地址';
-            case 'api_key':
-              return 'API Key';
-            case 'model_name':
-              return '模型名称';
-            default:
-              return f;
-          }
-        }).join('、');
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text('已保存。以下配置更改需要重启 MicroClaw 才能生效：$fieldLabels'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      } else {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('LLM 配置已保存，已立即生效')),
-        );
-      }
+      messenger.showSnackBar(
+        const SnackBar(content: Text('LLM 配置已保存')),
+      );
 
       await _load();
     } catch (e) {

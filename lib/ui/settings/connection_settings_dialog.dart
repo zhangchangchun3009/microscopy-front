@@ -28,264 +28,295 @@ Future<ConnectionSettingsDialogResult?> showConnectionSettingsDialog({
   required AppConfig initialConfig,
   required String userConfigPath,
 }) async {
-  final draft = initialConfig.copy();
-  final hostCtrl = TextEditingController(text: draft.piHost);
-  final gwPortCtrl = TextEditingController(text: draft.gatewayPort.toString());
-  final msPortCtrl = TextEditingController(
-    text: draft.microscopyPort.toString(),
-  );
-  final wsPathCtrl = TextEditingController(text: draft.wsPath);
-  final vidPathCtrl = TextEditingController(text: draft.videoPath);
-
-  final result = await showDialog<ConnectionSettingsDialogResult>(
+  return showDialog<ConnectionSettingsDialogResult>(
     context: context,
-    builder: (ctx) {
-      return StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          void updatePreview() => setDialogState(() {
-            draft.piHost = hostCtrl.text.trim();
-            draft.gatewayPort =
-                int.tryParse(gwPortCtrl.text.trim()) ?? draft.gatewayPort;
-            draft.microscopyPort =
-                int.tryParse(msPortCtrl.text.trim()) ?? draft.microscopyPort;
-            draft.wsPath = wsPathCtrl.text.trim();
-            draft.videoPath = vidPathCtrl.text.trim();
-          });
+    builder: (_) => ConnectionSettingsDialog(
+      initialConfig: initialConfig,
+      userConfigPath: userConfigPath,
+    ),
+  );
+}
 
-          return AlertDialog(
-            title: Row(
-              children: [
-                const Text('显微镜设置'),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: '关闭',
-                  onPressed: () => Navigator.pop(ctx),
-                ),
+class ConnectionSettingsDialog extends StatefulWidget {
+  const ConnectionSettingsDialog({
+    super.key,
+    required this.initialConfig,
+    required this.userConfigPath,
+  });
+
+  final AppConfig initialConfig;
+  final String userConfigPath;
+
+  @override
+  State<ConnectionSettingsDialog> createState() => _ConnectionSettingsDialogState();
+}
+
+class _ConnectionSettingsDialogState extends State<ConnectionSettingsDialog>
+    with TickerProviderStateMixin {
+  late AppConfig _draft;
+  late TabController _tabController;
+  late TextEditingController _hostCtrl;
+  late TextEditingController _gwPortCtrl;
+  late TextEditingController _msPortCtrl;
+  late TextEditingController _wsPathCtrl;
+  late TextEditingController _vidPathCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _draft = widget.initialConfig.copy();
+    _tabController = TabController(length: 3, vsync: this);
+    _hostCtrl = TextEditingController(text: _draft.piHost);
+    _gwPortCtrl = TextEditingController(text: _draft.gatewayPort.toString());
+    _msPortCtrl = TextEditingController(text: _draft.microscopyPort.toString());
+    _wsPathCtrl = TextEditingController(text: _draft.wsPath);
+    _vidPathCtrl = TextEditingController(text: _draft.videoPath);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _hostCtrl.dispose();
+    _gwPortCtrl.dispose();
+    _msPortCtrl.dispose();
+    _wsPathCtrl.dispose();
+    _vidPathCtrl.dispose();
+    super.dispose();
+  }
+
+  void _updatePreview() {
+    setState(() {
+      _draft.piHost = _hostCtrl.text.trim();
+      _draft.gatewayPort =
+          int.tryParse(_gwPortCtrl.text.trim()) ?? _draft.gatewayPort;
+      _draft.microscopyPort =
+          int.tryParse(_msPortCtrl.text.trim()) ?? _draft.microscopyPort;
+      _draft.wsPath = _wsPathCtrl.text.trim();
+      _draft.videoPath = _vidPathCtrl.text.trim();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Text('显微镜设置'),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: '关闭',
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 500,
+        height: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(text: '连接设置'),
+                Tab(text: 'LLM 设置'),
+                Tab(text: 'VLM 设置'),
               ],
             ),
-            content: SizedBox(
-              width: 500,
-              height: 480,
-              child: DefaultTabController(
-                length: 3,
-                child: Column(
-                  mainAxisSize: MainAxisSize.max,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const TabBar(
-                      tabs: [
-                        Tab(text: '连接设置'),
-                        Tab(text: 'LLM 设置'),
-                        Tab(text: 'VLM 设置'),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: TabBarView(
-                        children: [
-                          // Tab 1: Connection settings
-                          Column(
-                            children: [
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        TextField(
-                                          controller: hostCtrl,
-                                          decoration: const InputDecoration(
-                                            labelText: 'Pi 主机地址',
-                                            hintText: '10.198.31.242',
-                                            border: OutlineInputBorder(),
-                                            prefixIcon: Icon(Icons.dns),
-                                          ),
-                                          onChanged: (_) => updatePreview(),
+            const SizedBox(height: 12),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Tab 1: Connection settings
+                  Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                TextField(
+                                  controller: _hostCtrl,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Pi 主机地址',
+                                    hintText: '10.198.31.242',
+                                    border: OutlineInputBorder(),
+                                    prefixIcon: Icon(Icons.dns),
+                                  ),
+                                  onChanged: (_) => _updatePreview(),
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _gwPortCtrl,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Gateway 端口',
+                                          hintText: '42617',
+                                          border: OutlineInputBorder(),
                                         ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: TextField(
-                                              controller: gwPortCtrl,
-                                              decoration: const InputDecoration(
-                                                labelText: 'Gateway 端口',
-                                                hintText: '42617',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              onChanged: (_) => updatePreview(),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: TextField(
-                                              controller: msPortCtrl,
-                                              decoration: const InputDecoration(
-                                                labelText: '显微镜服务端口',
-                                                hintText: '5000',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              onChanged: (_) => updatePreview(),
-                                            ),
-                                          ),
-                                        ],
+                                        keyboardType:
+                                            TextInputType.number,
+                                        onChanged: (_) => _updatePreview(),
                                       ),
-                                      const SizedBox(height: 12),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: TextField(
-                                              controller: wsPathCtrl,
-                                              decoration: const InputDecoration(
-                                                labelText: 'WS 路径',
-                                                hintText: '/ws/chat',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              onChanged: (_) => updatePreview(),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: TextField(
-                                              controller: vidPathCtrl,
-                                              decoration: const InputDecoration(
-                                                labelText: '视频路径',
-                                                hintText: '/video_feed',
-                                                border: OutlineInputBorder(),
-                                              ),
-                                              onChanged: (_) => updatePreview(),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(ctx)
-                                              .colorScheme
-                                              .surfaceContainerHighest,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _msPortCtrl,
+                                        decoration: const InputDecoration(
+                                          labelText: '显微镜服务端口',
+                                          hintText: '5000',
+                                          border: OutlineInputBorder(),
                                         ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              '实际地址预览',
-                                              style: Theme.of(ctx)
-                                                  .textTheme
-                                                  .labelSmall,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            SelectableText(
-                                              'WS:  ${draft.wsUrl}\n视频: ${draft.videoUrl}',
-                                              style: const TextStyle(
-                                                fontFamily: 'monospace',
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                        keyboardType:
+                                            TextInputType.number,
+                                        onChanged: (_) => _updatePreview(),
                                       ),
-                                      const SizedBox(height: 12),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _wsPathCtrl,
+                                        decoration: const InputDecoration(
+                                          labelText: 'WS 路径',
+                                          hintText: '/ws/chat',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        onChanged: (_) => _updatePreview(),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _vidPathCtrl,
+                                        decoration: const InputDecoration(
+                                          labelText: '视频路径',
+                                          hintText: '/video_feed',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                        onChanged: (_) => _updatePreview(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    borderRadius:
+                                        BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
                                       Text(
-                                        '开发配置: assets/config.json（随应用分发）\n'
-                                        '用户配置: $userConfigPath',
-                                        style: Theme.of(ctx)
+                                        '实际地址预览',
+                                        style: Theme.of(context)
                                             .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: Theme.of(ctx)
-                                                  .colorScheme
-                                                  .outline,
-                                            ),
+                                            .labelSmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      SelectableText(
+                                        'WS:  ${_draft.wsUrl}\n视频: ${_draft.videoUrl}',
+                                        style: const TextStyle(
+                                          fontFamily: 'monospace',
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () {
-                                        Navigator.pop(
-                                          ctx,
-                                          ConnectionSettingsDialogResult(
-                                            action:
-                                                ConnectionSettingsAction.reset,
-                                            draft: draft.copy(),
-                                          ),
-                                        );
-                                      },
-                                      child: const Text('恢复默认'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: FilledButton(
-                                      onPressed: () {
-                                        // Save connection settings without closing
-                                        setDialogState(() {
-                                          draft.piHost = hostCtrl.text.trim();
-                                          draft.gatewayPort =
-                                              int.tryParse(gwPortCtrl.text.trim()) ?? draft.gatewayPort;
-                                          draft.microscopyPort =
-                                              int.tryParse(msPortCtrl.text.trim()) ?? draft.microscopyPort;
-                                          draft.wsPath = wsPathCtrl.text.trim();
-                                          draft.videoPath = vidPathCtrl.text.trim();
-                                        });
-                                      },
-                                      child: const Text('保存'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                const SizedBox(height: 12),
+                                Text(
+                                  '开发配置: assets/config.json（随应用分发）\n'
+                                  '用户配置: ${widget.userConfigPath}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .outline,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
-                          // Tab 2: LLM settings
-                          LlmSettingsTab(
-                            key: ValueKey('llm:${draft.piHost}:${draft.gatewayPort}'),
-                            gatewayBaseUrl:
-                                'http://${draft.piHost}:${draft.gatewayPort}',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.pop(
+                                  context,
+                                  ConnectionSettingsDialogResult(
+                                    action:
+                                        ConnectionSettingsAction.reset,
+                                    draft: _draft.copy(),
+                                  ),
+                                );
+                              },
+                              child: const Text('恢复默认'),
+                            ),
                           ),
-                          // Tab 3: VLM settings
-                          VlmSettingsTab(
-                            key: ValueKey('vlm:${draft.piHost}:${draft.gatewayPort}'),
-                            gatewayBaseUrl:
-                                'http://${draft.piHost}:${draft.gatewayPort}',
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () {
+                                Navigator.pop(
+                                  context,
+                                  ConnectionSettingsDialogResult(
+                                    action: ConnectionSettingsAction.apply,
+                                    draft: _draft.copy(),
+                                  ),
+                                );
+                              },
+                              child: const Text('保存'),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                  // Tab 2: LLM settings
+                  LlmSettingsTab(
+                    key: ValueKey('llm:${_draft.piHost}:${_draft.gatewayPort}'),
+                    gatewayBaseUrl:
+                        'http://${_draft.piHost}:${_draft.gatewayPort}',
+                  ),
+                  // Tab 3: VLM settings
+                  VlmSettingsTab(
+                    key: ValueKey('vlm:${_draft.piHost}:${_draft.gatewayPort}'),
+                    gatewayBaseUrl:
+                        'http://${_draft.piHost}:${_draft.gatewayPort}',
+                  ),
+                ],
               ),
             ),
-          );
-        },
-      );
-    },
-  );
-
-  hostCtrl.dispose();
-  gwPortCtrl.dispose();
-  msPortCtrl.dispose();
-  wsPathCtrl.dispose();
-  vidPathCtrl.dispose();
-
-  return result;
+          ],
+        ),
+      ),
+    );
+  }
 }
