@@ -31,17 +31,17 @@ class MicroscopySocket {
   /// 后端会应用 settings.json 中的曝光、增益、LED 等，视频流才能正常亮。
   ///
   /// [baseUrl] 为显微镜服务根地址，例如 http://10.198.31.242:5000
-  void connect(String baseUrl) {
+  /// [transports] 可选的传输方式列表，默认为 ['websocket']。
+  /// Web 端通过 gateway 代理时应使用 ['polling']（代理不支持 WebSocket 升级）。
+  void connect(String baseUrl, {List<String>? transports}) {
     if (_socket != null || _connecting) return;
     _connecting = true;
     final uri = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
-    _socket = io.io(
-      uri,
-      io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .build(),
-    );
+    final builder = io.OptionBuilder().disableAutoConnect();
+    if (transports != null) {
+      builder.setTransports(transports);
+    }
+    _socket = io.io(uri, builder.build());
 
     _socket!.onConnect((_) {
       _connecting = false;

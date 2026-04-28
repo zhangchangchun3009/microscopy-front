@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_mjpeg/flutter_mjpeg.dart';
 
 import 'scale_ruler.dart';
 import 'scale_ruler_math.dart';
+import 'video_source_native.dart'
+    if (dart.library.js_interop) 'video_source_web.dart'
+    as video_source;
 
 /// 按给定缩放/平移显示 MJPEG 与比例尺（交互由上层处理，避免被 ROI 层拦截）。
 ///
@@ -54,12 +56,9 @@ class ZoomableVideoViewport extends StatelessWidget {
         );
 
         final videoChild = isVideoLive
-            ? Mjpeg(
-                stream: videoUrl,
-                isLive: true,
-                timeout: const Duration(seconds: 60),
-                fit: BoxFit.contain,
-                error: errorBuilder ??
+            ? video_source.buildMjpegView(
+                videoUrl: videoUrl,
+                errorBuilder: errorBuilder ??
                     (context, error, stack) => Center(
                           child: Text('视频连接失败: $error'),
                         ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -159,9 +160,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _config = config;
       _configLoaded = true;
     });
-    // 与 Web 前端一致：先连 microscopy_server Socket.IO 并 get_settings，再拉 MJPEG 才正常
+    // Web 端：Socket.IO 和视频请求走 gateway 端口（MicroClaw 反向代理，避免 CORS）
+    // 非 Web 端：直连 microscopy_server
+    final socketUrl = kIsWeb
+        ? 'http://${_config.piHost}:${_config.gatewayPort}'
+        : 'http://${_config.piHost}:${_config.microscopyPort}';
     _microscopySocket.connect(
-      'http://${_config.piHost}:${_config.microscopyPort}',
+      socketUrl,
+      transports: kIsWeb ? ['polling'] : ['websocket'],
     );
     await _connectWs();
   }
@@ -174,10 +180,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void _sendMessage(String text) {
     final normalized = text.trim();
     if (normalized.isEmpty || !_chatSession.wsConnected) return;
-    _chatSession.sendMessage(
-      normalized,
-      roiNorm: _currentRoi?.toPayload(),
-    );
+    _chatSession.sendMessage(normalized, roiNorm: _currentRoi?.toPayload());
     _inputCtrl.clear();
     _scrollToBottom();
   }
@@ -226,8 +229,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _chatSession.appendStatus('配置已保存，正在重新连接...');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _microscopySocket.disconnect();
+          final socketUrl = kIsWeb
+              ? 'http://${_config.piHost}:${_config.gatewayPort}'
+              : 'http://${_config.piHost}:${_config.microscopyPort}';
           _microscopySocket.connect(
-            'http://${_config.piHost}:${_config.microscopyPort}',
+            socketUrl,
+            transports: kIsWeb ? ['polling'] : ['websocket'],
           );
           _connectWs();
         });
@@ -268,9 +275,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       child: Text(
                         '设备ID: ${_chatSession.deviceId}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey,
-                              fontSize: 11,
-                            ),
+                          color: Colors.grey,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ],
@@ -319,7 +326,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         children: [
           RightChatSplitLayout(
             leftPane: VideoStage(
-              videoUrl: _config.videoUrl,
+              videoUrl: kIsWeb
+                  ? 'http://${_config.piHost}:${_config.gatewayPort}${_config.videoPath}'
+                  : _config.videoUrl,
               isVideoLive: _isVideoLive,
               onToggleLive: () => setState(() => _isVideoLive = !_isVideoLive),
               onRoiChanged: (roi) => setState(() => _currentRoi = roi),

@@ -1,14 +1,18 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:path_provider/path_provider.dart';
+
+import 'platform/user_storage_native.dart'
+    if (dart.library.js_interop) 'platform/user_storage_web.dart'
+    as storage;
 
 /// 两层配置：
 ///   1. assets/config.json  — 开发默认值，版本控制，改 Pi IP/端口不用改代码
-///   2. ~/.config/microscope_app/config.json — 用户覆盖，通过设置弹窗修改
+///   2. 用户配置 — 通过设置弹窗修改
+///      - 非 Web: ~/.config/microscope_app/config.json
+///      - Web:    localStorage['microscope_app_config']
 ///
-/// 加载顺序：硬编码 fallback → asset → 用户文件（后者覆盖前者）
+/// 加载顺序：硬编码 fallback → asset → 用户配置（后者覆盖前者）
 class AppConfig {
   String piHost;
   int gatewayPort;
@@ -57,7 +61,7 @@ class AppConfig {
 
   // ── Load ─────────────────────────────────────────────────────
 
-  /// 加载配置：hardcoded → assets/config.json → 用户配置文件
+  /// 加载配置：hardcoded → assets/config.json → 用户配置
   static Future<AppConfig> load() async {
     final config = AppConfig();
 
@@ -69,15 +73,14 @@ class AppConfig {
       // asset 缺失不影响启动
     }
 
-    // Layer 2: 用户配置（本地文件）
+    // Layer 2: 用户配置（平台存储）
     try {
-      final file = await _userConfigFile();
-      if (await file.exists()) {
-        final userStr = await file.readAsString();
+      final userStr = await storage.readUserConfig();
+      if (userStr != null) {
         config.applyJson(jsonDecode(userStr) as Map<String, dynamic>);
       }
     } catch (_) {
-      // 文件不存在或格式错误，忽略
+      // 配置不存在或格式错误，忽略
     }
 
     return config;
@@ -86,36 +89,20 @@ class AppConfig {
   // ── Save (user layer only) ──────────────────────────────────
 
   Future<void> saveUser() async {
-    final file = await _userConfigFile();
-    await file.parent.create(recursive: true);
-    await file.writeAsString(
+    await storage.writeUserConfig(
       const JsonEncoder.withIndent('  ').convert(toJson()),
     );
   }
 
-  /// 删除用户配置文件，恢复到开发默认值
+  /// 删除用户配置，恢复到开发默认值
   static Future<void> resetUser() async {
-    final file = await _userConfigFile();
-    if (await file.exists()) {
-      await file.delete();
-    }
+    await storage.deleteUserConfig();
   }
 
   // ── User config path ────────────────────────────────────────
 
-  static Future<File> _userConfigFile() async {
-    if (Platform.isMacOS || Platform.isLinux) {
-      final home = Platform.environment['HOME'] ?? '.';
-      return File('$home/.config/microscope_app/config.json');
-    }
-    // Windows / 其他平台 fallback 到 app support 目录
-    final dir = await getApplicationSupportDirectory();
-    return File('${dir.path}/config.json');
-  }
-
-  /// 返回用户配置文件路径（供 UI 显示）
+  /// 返回用户配置路径/描述（供 UI 显示）
   static Future<String> userConfigPath() async {
-    final file = await _userConfigFile();
-    return file.path;
+    return storage.userConfigPath();
   }
 }

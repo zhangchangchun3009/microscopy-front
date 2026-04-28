@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 /// VLM settings tab inside the connection settings dialog.
@@ -58,11 +57,8 @@ class _VlmSettingsTabState extends State<VlmSettingsTab> {
     });
 
     try {
-      final uri = Uri.parse('${widget.gatewayBaseUrl}/api/vlm/config');
-      final client = HttpClient();
-      final request = await client.getUrl(uri);
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
+      final uri = '${widget.gatewayBaseUrl}/api/vlm/config';
+      final response = await Dio().get(uri);
 
       if (response.statusCode != 200) {
         setState(() {
@@ -72,7 +68,7 @@ class _VlmSettingsTabState extends State<VlmSettingsTab> {
         return;
       }
 
-      final data = jsonDecode(body) as Map<String, dynamic>;
+      final data = response.data as Map<String, dynamic>;
 
       _apiUrlCtrl.text = (data['api_url'] ?? '').toString();
       _modelCtrl.text = (data['model_name'] ?? '').toString();
@@ -132,17 +128,16 @@ class _VlmSettingsTabState extends State<VlmSettingsTab> {
     }
 
     try {
-      final uri = Uri.parse('${widget.gatewayBaseUrl}/api/vlm/config');
-      final client = HttpClient();
-      final request = await client.openUrl('PUT', uri);
-      request.headers.contentType = ContentType.json;
-      request.add(utf8.encode(jsonEncode(body)));
-      final response = await request.close();
-      final respBody = await response.transform(utf8.decoder).join();
+      final uri = '${widget.gatewayBaseUrl}/api/vlm/config';
+      final response = await Dio().put(
+        uri,
+        data: body,
+        options: Options(contentType: Headers.jsonContentType),
+      );
 
       if (response.statusCode != 200) {
         messenger.showSnackBar(
-          SnackBar(content: Text('保存失败: ${response.statusCode} $respBody')),
+          SnackBar(content: Text('保存失败: ${response.statusCode}')),
         );
         return;
       }

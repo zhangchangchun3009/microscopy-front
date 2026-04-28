@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../../services/ota_apk_service.dart';
+import '../../services/ota_platform.dart';
 import 'chat_models.dart';
 import 'chat_turn_models.dart';
 
@@ -24,6 +25,7 @@ class ChatSessionController extends ChangeNotifier {
   bool _wsConnected = false;
   bool _agentBusy = false;
   final List<SystemMessage> _systemMessages = [];
+
   /// 纯展示用：按事件产生顺序追加，ChatPanel 直接消费此列表渲染。
   final List<TimelineItem> _displayTimeline = [];
   String? _currentMessageId;
@@ -44,7 +46,8 @@ class ChatSessionController extends ChangeNotifier {
   List<ChatMsg> get messages => List.unmodifiable(_messages);
 
   /// 以 message_id 索引的 turn 聚合结果（只读视图）。
-  Map<String, ChatTurn> get turnByMessageId => Map.unmodifiable(_turnByMessageId);
+  Map<String, ChatTurn> get turnByMessageId =>
+      Map.unmodifiable(_turnByMessageId);
 
   /// turn 时间序列表（只读视图）。
   List<ChatTurn> get turns => List.unmodifiable(_turns);
@@ -94,11 +97,11 @@ class ChatSessionController extends ChangeNotifier {
       _wsConnected = true;
       _appendStatus('已连接 $url');
 
-      // 上报 App 版本号（供 microclaw OTA 工具使用）
-      _reportAppVersion();
-
-      // 静默请求 OTA 更新检查
-      _channel?.sink.add(jsonEncode({'type': 'ota_check'}));
+      if (OtaPlatform.currentSupportsApkOta()) {
+        // 只有 Android 原生客户端参与 APK OTA；Web 随 MicroClaw 分发，macOS 暂跳过。
+        await _reportAppVersion();
+        _channel?.sink.add(jsonEncode({'type': 'ota_check'}));
+      }
 
       notifyListeners();
     } catch (e) {
@@ -190,10 +193,7 @@ class ChatSessionController extends ChangeNotifier {
   /// 取消当前回合
   void cancelCurrentTurn() {
     if (_agentBusy && _currentMessageId != null) {
-      final payload = {
-        'type': 'cancel',
-        'message_id': _currentMessageId,
-      };
+      final payload = {'type': 'cancel', 'message_id': _currentMessageId};
       _channel?.sink.add(jsonEncode(payload));
       _appendSystemMessage('收到取消信号，请稍等', SystemMessageType.info);
       notifyListeners();
@@ -304,11 +304,17 @@ class ChatSessionController extends ChangeNotifier {
 
     final type = data['type'] as String? ?? '';
     final messageId = data['message_id'] as String?;
-    if (messageId == null && type != 'turn_start' && type != 'device_info' && type != 'system_event') {
+    if (messageId == null &&
+        type != 'turn_start' &&
+        type != 'device_info' &&
+        type != 'system_event') {
       _warnProtocolMismatch(type, data);
       return;
     }
-    _logWs('parsed', 'type=$type, message_id=${messageId ?? "null"}, payload=$data');
+    _logWs(
+      'parsed',
+      'type=$type, message_id=${messageId ?? "null"}, payload=$data',
+    );
     final turn = messageId == null ? null : _ensureTurn(messageId);
 
     switch (type) {
@@ -379,7 +385,10 @@ class ChatSessionController extends ChangeNotifier {
             turn.finish();
             _agentBusy = false;
             _appendTurnToMessages(turn);
-            _logWs('dispatch', 'turn_end -> busy=false, turn=${turn.messageId}');
+            _logWs(
+              'dispatch',
+              'turn_end -> busy=false, turn=${turn.messageId}',
+            );
           }
           _currentMessageId = null;
         }
@@ -388,9 +397,13 @@ class ChatSessionController extends ChangeNotifier {
         if (turn != null) {
           final snapshot = data['payload'] as Map<String, dynamic>?;
           if (snapshot != null) {
-            _logWs('dispatch', 'execution_snapshot -> ${snapshot['tool_executions']?.length ?? 0} tools');
+            _logWs(
+              'dispatch',
+              'execution_snapshot -> ${snapshot['tool_executions']?.length ?? 0} tools',
+            );
             // 将快照信息添加到思考步骤中
-            final toolExecutions = snapshot['tool_executions'] as List<dynamic>?;
+            final toolExecutions =
+                snapshot['tool_executions'] as List<dynamic>?;
             if (toolExecutions != null && toolExecutions.isNotEmpty) {
               final summary = _formatExecutionSnapshot(snapshot);
               turn.addThoughtStep('📊 $summary');
@@ -405,7 +418,10 @@ class ChatSessionController extends ChangeNotifier {
             try {
               final document = RenderedDocument.fromJson(documentData);
               turn.setRenderedDocument(document);
-              _logWs('dispatch', 'render_complete -> "${document.metadata.title}"');
+              _logWs(
+                'dispatch',
+                'render_complete -> "${document.metadata.title}"',
+              );
 
               // 不要覆盖 LLM 的总结
               // 操作报告将作为独立的 UI 元素显示
@@ -450,7 +466,9 @@ class ChatSessionController extends ChangeNotifier {
           _messages.add(ChatMsg(role: MsgRole.status, text: step.text ?? ''));
           break;
         case StepType.toolCall:
-          final callText = step.toolName == null ? '调用工具' : '调用工具: ${step.toolName}';
+          final callText = step.toolName == null
+              ? '调用工具'
+              : '调用工具: ${step.toolName}';
           _messages.add(
             ChatMsg(
               role: MsgRole.toolCall,
@@ -491,12 +509,18 @@ class ChatSessionController extends ChangeNotifier {
     try {
       final info = await PackageInfo.fromPlatform();
       appVersion = info.version;
-      _channel?.sink.add(jsonEncode({
-        'type': 'device_info',
-        'device_id': '',
-        'app_version': info.version,
-      }));
-      _logWs('ota', 'reported app_version=${info.version}');
+      _channel?.sink.add(
+        jsonEncode({
+          'type': 'device_info',
+          'device_id': '',
+          'app_version': info.version,
+          'app_platform': OtaPlatform.currentPlatformName(),
+        }),
+      );
+      _logWs(
+        'ota',
+        'reported app_version=${info.version}, platform=${OtaPlatform.currentPlatformName()}',
+      );
     } catch (e) {
       debugPrint('[OTA] 获取 App 版本失败: $e');
     }
@@ -508,11 +532,21 @@ class ChatSessionController extends ChangeNotifier {
     debugPrint('[OTA] received system_event: $event');
     switch (event) {
       case 'ota_apk_update':
+        if (!OtaPlatform.currentSupportsApkOta()) {
+          _logWs(
+            'ota',
+            'ignored ota_apk_update on ${OtaPlatform.currentPlatformName()}',
+          );
+          break;
+        }
         final url = data['url'] as String?;
         final sha256 = data['sha256'] as String?;
         final version = data['version'] as String?;
         final fileSize = data['file_size'] as int?;
-        if (url != null && sha256 != null && version != null && fileSize != null) {
+        if (url != null &&
+            sha256 != null &&
+            version != null &&
+            fileSize != null) {
           _otaApkService.onResult = (result) {
             switch (result.state) {
               case OtaApkState.downloading:
@@ -608,7 +642,8 @@ class ChatSessionController extends ChangeNotifier {
         final toolName = exec['tool_name'] as String? ?? 'unknown';
         final success = exec['success'] as bool? ?? false;
         final icon = success ? '✓' : '✗';
-        final toolDuration = ((exec['duration_ms'] as int? ?? 0) / 1000).toStringAsFixed(2);
+        final toolDuration = ((exec['duration_ms'] as int? ?? 0) / 1000)
+            .toStringAsFixed(2);
         sb.write('  $icon $toolName (${toolDuration}s)');
       }
     }
@@ -648,8 +683,9 @@ class ChatSessionController extends ChangeNotifier {
   }
 
   /// 解析 WebSocket `tool_call_end` 中的 [result_image_base64]（单张），供对话框预览。
-  static List<Uint8List> decodeToolPreviewImagesForTest(Map<String, dynamic> data) =>
-      _decodeToolPreviewImages(data);
+  static List<Uint8List> decodeToolPreviewImagesForTest(
+    Map<String, dynamic> data,
+  ) => _decodeToolPreviewImages(data);
 
   static List<Uint8List> _decodeToolPreviewImages(Map<String, dynamic> data) {
     final raw = data['result_image_base64'];
@@ -679,7 +715,10 @@ class ChatSessionController extends ChangeNotifier {
   }
 
   void _warnProtocolMismatch(String type, Map<String, dynamic> payload) {
-    _logWs('protocol_mismatch', 'missing message_id for type=$type, payload=$payload');
+    _logWs(
+      'protocol_mismatch',
+      'missing message_id for type=$type, payload=$payload',
+    );
     if (_protocolMismatchWarned) {
       return;
     }
@@ -749,6 +788,7 @@ class ChatSessionController extends ChangeNotifier {
     return started;
   }
 
+  @override
   void dispose() {
     _wsSub?.cancel();
     _channel?.sink.close();

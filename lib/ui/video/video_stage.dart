@@ -16,10 +16,13 @@ class VideoStage extends StatefulWidget {
     required this.onToggleLive,
     required this.onRoiChanged,
     this.videoFrameSize = const Size(640, 480),
+
     /// `settings_update.pixel_size`（μm/px）；缺省与 Web `script.js` 初值一致。
     this.pixelSizeUmPerPx = 10,
+
     /// `settings_update.magnification`。
     this.magnification = 20,
+
     /// 沉浸模式下隐藏顶部 HUD。
     this.immersiveMode = false,
   });
@@ -219,7 +222,9 @@ class _VideoStageState extends State<VideoStage> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(widget.isVideoLive ? Icons.pause : Icons.play_arrow),
+                    icon: Icon(
+                      widget.isVideoLive ? Icons.pause : Icons.play_arrow,
+                    ),
                     iconSize: 20,
                     tooltip: widget.isVideoLive ? '暂停' : '继续',
                     onPressed: widget.onToggleLive,
@@ -264,9 +269,16 @@ class _VideoStageState extends State<VideoStage> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.videocam_off, size: 48, color: cs.error),
+                                Icon(
+                                  Icons.videocam_off,
+                                  size: 48,
+                                  color: cs.error,
+                                ),
                                 const SizedBox(height: 12),
-                                Text('视频连接失败', style: TextStyle(color: cs.error)),
+                                Text(
+                                  '视频连接失败',
+                                  style: TextStyle(color: cs.error),
+                                ),
                                 const SizedBox(height: 4),
                                 SelectableText(
                                   error.toString(),
