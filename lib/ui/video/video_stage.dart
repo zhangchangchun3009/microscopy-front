@@ -51,6 +51,14 @@ class VideoStage extends StatefulWidget {
   /// 沉浸模式下隐藏顶部 HUD。
   final bool immersiveMode;
 
+  /// 仅供测试：为直播流附加一次性 nonce，触发浏览器重新建立连接。
+  static String appendLiveSessionNonce(String url, int nonce) {
+    final uri = Uri.parse(url);
+    final query = Map<String, String>.from(uri.queryParameters);
+    query['_live'] = nonce.toString();
+    return uri.replace(queryParameters: query).toString();
+  }
+
   @override
   State<VideoStage> createState() => _VideoStageState();
 }
@@ -61,8 +69,18 @@ class _VideoStageState extends State<VideoStage> {
   double _posY = 0;
   double _pinchBaseScale = 1;
   double _trackpadPinchBaseScale = 1;
+  int _liveSessionNonce = 0;
 
   static const double _roiScaleEpsilon = 0.001;
+
+  @override
+  void didUpdateWidget(covariant VideoStage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 切回直播时刷新流 URL，避免浏览器/代理层复用已断开的 MJPEG 连接。
+    if (!oldWidget.isVideoLive && widget.isVideoLive) {
+      _liveSessionNonce += 1;
+    }
+  }
 
   void _applyZoomPan(
     ViewportPanZoom z,
@@ -238,6 +256,9 @@ class _VideoStageState extends State<VideoStage> {
                 final vw = constraints.maxWidth;
                 final vh = constraints.maxHeight;
                 final viewportSize = Size(vw, vh);
+                final effectiveVideoUrl = widget.isVideoLive
+                    ? VideoStage.appendLiveSessionNonce(widget.videoUrl, _liveSessionNonce)
+                    : widget.videoUrl;
 
                 return Listener(
                   onPointerSignal: (s) => _onWheel(s, viewportSize),
@@ -257,7 +278,7 @@ class _VideoStageState extends State<VideoStage> {
                       fit: StackFit.expand,
                       children: [
                         ZoomableVideoViewport(
-                          videoUrl: widget.videoUrl,
+                          videoUrl: effectiveVideoUrl,
                           isVideoLive: widget.isVideoLive,
                           videoFrameSize: widget.videoFrameSize,
                           scale: _scale,

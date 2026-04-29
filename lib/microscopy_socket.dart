@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 /// 与 microscopy_server 的 Socket.IO 连接。
@@ -13,6 +15,10 @@ class MicroscopySocket {
 
   io.Socket? _socket;
   bool _connecting = false;
+  bool _manualDisconnect = false;
+  String? _baseUrl;
+  List<String>? _transports;
+  Timer? _reconnectTimer;
 
   final Map<String, List<void Function(dynamic)>> _handlers = {};
 
@@ -34,6 +40,11 @@ class MicroscopySocket {
   /// [transports] 可选的传输方式列表，默认为 ['websocket']。
   /// Web 端通过 gateway 代理时应使用 ['polling']（代理不支持 WebSocket 升级）。
   void connect(String baseUrl, {List<String>? transports}) {
+    _baseUrl = baseUrl;
+    _transports = transports == null ? null : List<String>.from(transports);
+    _manualDisconnect = false;
+    _reconnectTimer?.cancel();
+
     if (_socket != null || _connecting) return;
     _connecting = true;
     final uri = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
@@ -51,19 +62,51 @@ class MicroscopySocket {
 
     _socket!.onConnectError((data) {
       _connecting = false;
+      _scheduleReconnect();
     });
 
-    _socket!.onDisconnect((_) {});
+    _socket!.onDisconnect((data) {
+      _connecting = false;
+      _scheduleReconnect();
+    });
 
     _socket!.connect();
   }
 
   /// 断开连接
   void disconnect() {
+    _manualDisconnect = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
     _connecting = false;
+  }
+
+  void _scheduleReconnect() {
+    if (_manualDisconnect || _connecting) {
+      return;
+    }
+    final socket = _socket;
+    if (socket != null && socket.connected) {
+      return;
+    }
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(seconds: 1), () {
+      if (_manualDisconnect) {
+        return;
+      }
+      final current = _socket;
+      if (current != null && !current.connected) {
+        current.connect();
+        return;
+      }
+      final url = _baseUrl;
+      if (url != null) {
+        connect(url, transports: _transports);
+      }
+    });
   }
 
   /// 发送事件（与 Web 前端一致，便于迁移）

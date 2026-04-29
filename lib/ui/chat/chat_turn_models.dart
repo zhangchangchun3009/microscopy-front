@@ -256,6 +256,9 @@ class ThoughtStep {
 
   /// 记录步骤时间。
   final DateTime timestamp;
+
+  /// 当前思考步骤是否正在接收流式 delta。
+  bool isStreamingThought = false;
 }
 
 /// 单个会话 turn 聚合模型（按 message_id 唯一）。
@@ -344,8 +347,61 @@ class ChatTurn extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 将思考增量追加到当前思考步骤。
+  void appendThoughtDelta(String delta) {
+    if (delta.isEmpty) {
+      return;
+    }
+    final thoughtStep = _findStreamingThoughtStep();
+    if (thoughtStep == null) {
+      _steps.add(ThoughtStep(type: StepType.thought, text: delta)
+        ..isStreamingThought = true);
+    } else {
+      thoughtStep.text = '${thoughtStep.text ?? ''}$delta';
+    }
+    notifyListeners();
+  }
+
+  /// 用服务端最终思考内容覆盖当前思考步骤。
+  void replaceThoughtContent(String content) {
+    if (content.isEmpty) {
+      return;
+    }
+    final thoughtStep = _findStreamingThoughtStep();
+    if (thoughtStep == null) {
+      _steps.add(ThoughtStep(type: StepType.thought, text: content));
+    } else {
+      thoughtStep.text = content;
+      thoughtStep.isStreamingThought = false;
+    }
+    notifyListeners();
+  }
+
+  ThoughtStep? _findStreamingThoughtStep() {
+    for (final step in _steps.reversed) {
+      if (step.type == StepType.thought && step.isStreamingThought) {
+        return step;
+      }
+    }
+    return null;
+  }
+
+  /// 将当前流式思考标记为已结束（不删改已累积文本）。
+  ///
+  /// 多轮 agent 在「本轮含 tool_calls」时后端往往不发 `thought_update`，
+  /// 若仍保留 `isStreamingThought`，下一轮 `thought_delta` / `thought_update`
+  /// 会追加或覆盖到同一块，导致只看见最后一轮推理。
+  void _finalizeAnyStreamingThought() {
+    for (final step in _steps) {
+      if (step.type == StepType.thought && step.isStreamingThought) {
+        step.isStreamingThought = false;
+      }
+    }
+  }
+
   /// 开始一个工具调用步骤。
   void startToolCall({String? toolName, String? argsText, String? stepId}) {
+    _finalizeAnyStreamingThought();
     _steps.add(
       ThoughtStep(
         type: StepType.toolCall,

@@ -328,8 +328,15 @@ class ChatSessionController extends ChangeNotifier {
       case 'thought_update':
         final text = (data['content'] ?? data['text'] ?? '').toString();
         if (turn != null && text.isNotEmpty) {
-          turn.addThoughtStep(text);
+          turn.replaceThoughtContent(text);
           _logWs('dispatch', 'thought_update -> "${_truncateForLog(text)}"');
+        }
+        break;
+      case 'thought_delta':
+        final delta = (data['delta'] ?? '').toString();
+        if (turn != null && delta.isNotEmpty) {
+          turn.appendThoughtDelta(delta);
+          _logWs('dispatch', 'thought_delta -> "${_truncateForLog(delta)}"');
         }
         break;
       case 'tool_call_start':

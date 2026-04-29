@@ -5,6 +5,20 @@ import 'package:microscope_app/ui/video/roi_overlay.dart';
 import 'package:microscope_app/ui/video/video_stage.dart';
 
 void main() {
+  test('appendLiveSessionNonce 为视频地址附加/覆盖 _live 参数', () {
+    final withNonce = VideoStage.appendLiveSessionNonce(
+      'http://127.0.0.1:42617/video_feed',
+      3,
+    );
+    expect(withNonce, 'http://127.0.0.1:42617/video_feed?_live=3');
+
+    final merged = VideoStage.appendLiveSessionNonce(
+      'http://127.0.0.1:42617/video_feed?foo=bar&_live=1',
+      9,
+    );
+    expect(merged, 'http://127.0.0.1:42617/video_feed?foo=bar&_live=9');
+  });
+
   testWidgets('滚轮缩放在 ROI 层之上生效，scale>1 时隐藏 ROI', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(900, 700);
     tester.view.devicePixelRatio = 1.0;

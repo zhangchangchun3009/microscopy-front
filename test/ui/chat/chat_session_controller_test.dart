@@ -53,6 +53,42 @@ void main() {
       expect(controller.turns.single.steps.single.type, StepType.content);
     });
 
+    test('thought_delta 逐步追加且 thought_update 最终覆盖', () {
+      final controller = ChatSessionController();
+
+      controller.handleIncomingEventForTest('{"type":"turn_start","message_id":"m-stream"}');
+      controller.handleIncomingEventForTest(
+        '{"type":"thought_delta","message_id":"m-stream","delta":"正在"}',
+      );
+      controller.handleIncomingEventForTest(
+        '{"type":"thought_delta","message_id":"m-stream","delta":"分析"}',
+      );
+      controller.handleIncomingEventForTest(
+        '{"type":"thought_update","message_id":"m-stream","content":"正在分析完整上下文"}',
+      );
+
+      final thoughts = controller.turns.single.thoughtSteps;
+      expect(thoughts.length, 1);
+      expect(thoughts.single.text, '正在分析完整上下文');
+    });
+
+    test('连续 thought_update 保留完整思考步骤历史', () {
+      final controller = ChatSessionController();
+
+      controller.handleIncomingEventForTest('{"type":"turn_start","message_id":"m-thoughts"}');
+      controller.handleIncomingEventForTest(
+        '{"type":"thought_update","message_id":"m-thoughts","content":"第一段思考"}',
+      );
+      controller.handleIncomingEventForTest(
+        '{"type":"thought_update","message_id":"m-thoughts","content":"第二段思考"}',
+      );
+
+      final thoughts = controller.turns.single.thoughtSteps;
+      expect(thoughts.length, 2);
+      expect(thoughts[0].text, '第一段思考');
+      expect(thoughts[1].text, '第二段思考');
+    });
+
     test('disconnect 会清理连接状态但保留聚合结果', () {
       final controller = ChatSessionController();
       controller.handleIncomingEventForTest('{"type":"turn_start","message_id":"m1"}');
