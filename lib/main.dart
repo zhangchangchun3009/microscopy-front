@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 import 'app_config.dart';
+import 'platform/clipboard_native.dart'
+    if (dart.library.js_interop) 'platform/clipboard_web.dart'
+    as clipboard;
 import 'microscopy_socket.dart';
 import 'ui/chat/chat_panel.dart';
 import 'ui/chat/chat_session_controller.dart';
@@ -262,8 +263,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () {
-                        Clipboard.setData(
-                          ClipboardData(text: _chatSession.deviceId!),
+                        clipboard.copyToClipboard(
+                          _chatSession.deviceId!,
                         );
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -369,8 +370,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _copyAllMessages() async {
     if (_chatSession.messages.isEmpty) return;
-    await Clipboard.setData(
-      ClipboardData(text: _chatSession.formatMessagesForCopy()),
+    await clipboard.copyToClipboard(
+      _chatSession.formatMessagesForCopy(),
     );
     if (mounted) {
       ScaffoldMessenger.of(

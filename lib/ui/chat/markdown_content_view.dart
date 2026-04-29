@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+
+import '../../platform/clipboard_native.dart'
+    if (dart.library.js_interop) '../../platform/clipboard_web.dart'
+    as clipboard;
 
 /// Markdown 内容渲染组件。
 ///
@@ -41,7 +45,7 @@ class _MarkdownContentViewState extends State<MarkdownContentView> {
     if (widget.markdown.isEmpty) {
       return;
     }
-    await Clipboard.setData(ClipboardData(text: widget.markdown));
+    await clipboard.copyToClipboard(widget.markdown);
     if (!mounted) {
       return;
     }
