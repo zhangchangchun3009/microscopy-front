@@ -29,6 +29,7 @@ class _LlmSettingsTabState extends State<LlmSettingsTab> {
   final _modelCtrl = TextEditingController();
   final _timeoutCtrl = TextEditingController();
   final _maxTokensCtrl = TextEditingController();
+  final _temperatureCtrl = TextEditingController();
   final _thinkingBudgetCtrl = TextEditingController();
 
   String _wireApi = 'chat_completions';
@@ -79,6 +80,7 @@ class _LlmSettingsTabState extends State<LlmSettingsTab> {
       _timeoutCtrl.text = (data['timeout_secs'] ?? 120).toString();
       _maxTokensCtrl.text =
           ((data['max_tokens'] ?? 4096) as num).toInt().toString();
+      _temperatureCtrl.text = ((data['temperature'] ?? 0.7) as num).toString();
       _thinkingBudgetCtrl.text =
           ((data['thinking_budget'] ?? 8192) as num).toInt().toString();
       _enableThinking = (data['enable_thinking'] ?? false) as bool;
@@ -107,10 +109,14 @@ class _LlmSettingsTabState extends State<LlmSettingsTab> {
 
     final timeout = int.tryParse(_timeoutCtrl.text.trim());
     final maxTokens = int.tryParse(_maxTokensCtrl.text.trim());
+    final temperature = double.tryParse(_temperatureCtrl.text.trim());
     final thinkingBudget = int.tryParse(_thinkingBudgetCtrl.text.trim());
-    if (timeout == null || maxTokens == null || thinkingBudget == null) {
+    if (timeout == null ||
+        maxTokens == null ||
+        temperature == null ||
+        thinkingBudget == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('超时/最大Token/思考预算必须是数字')),
+        const SnackBar(content: Text('超时/最大Token/温度/思考预算必须是数字')),
       );
       return;
     }
@@ -121,6 +127,7 @@ class _LlmSettingsTabState extends State<LlmSettingsTab> {
       'wire_api': _wireApi,
       'timeout_secs': timeout,
       'max_tokens': maxTokens,
+      'temperature': temperature,
       'enable_thinking': _enableThinking,
       'thinking_budget': thinkingBudget,
     };
@@ -249,6 +256,16 @@ class _LlmSettingsTabState extends State<LlmSettingsTab> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                TextField(
+                  controller: _temperatureCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: '温度',
+                  ),
+                ),
+                const SizedBox(height: 10),
                 SwitchListTile(
                   title: const Text('启用思考链（thinking）'),
                   value: _enableThinking,
@@ -286,6 +303,7 @@ class _LlmSettingsTabState extends State<LlmSettingsTab> {
     _modelCtrl.dispose();
     _timeoutCtrl.dispose();
     _maxTokensCtrl.dispose();
+    _temperatureCtrl.dispose();
     _thinkingBudgetCtrl.dispose();
     super.dispose();
   }
