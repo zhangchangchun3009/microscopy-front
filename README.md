@@ -1,6 +1,6 @@
 # 显微镜智能助手 — Flutter macOS 客户端
 
-智能显微镜助手系统的桌面前端，运行在 Mac 上，通过 WebSocket 与树莓派上的 MicroClaw Agent 交互，同时显示显微镜实时视频流。
+智能显微镜助手系统的桌面前端，运行在 Mac 上，通过 WebSocket 与 MicroClaw Agent 交互，同时显示显微镜实时视频流。
 
 ## 功能
 
@@ -12,14 +12,12 @@
 ## 架构
 
 ```
-Flutter (Mac)  ──WebSocket──>  MicroClaw (Pi)  ──MCP──>  microscopy_server (Pi)
-     │                                                          │
-     ├──────────────── Socket.IO ───────────────────────────────┤
-     │   (get_settings 初始化 + 后续进度/日志等，与 Web 前端一致)    │
-     └──────────────── MJPEG 视频流 ────────────────────────────┘
+Flutter (Mac)  ──WebSocket──>  MicroClaw
+     │                             │
+     └──────────── 视频流（MJPEG/RTSP，按设备配置） ────────────────┘
 ```
 
-- **Socket.IO**：连接 microscopy_server 后先 `emit('get_settings')`，后端应用相机/LED 等设置，MJPEG 才能正常显示；同一连接可复用，用于长任务进度（如 `global_scan_progress`、`stitch_progress`、`focus_stack_progress` 等），便于迁移原 Web 前端逻辑。
+- 前端不感知设备侧是 MCP 还是 CLI 实现，控制面统一通过 MicroClaw 的 WebSocket 协议。
 
 ## 默认配置
 
@@ -41,7 +39,7 @@ flutter run -d macos
 
 - `flutter_mjpeg` — MJPEG 视频流渲染
 - `web_socket_channel` — Agent WebSocket 通信
-- `socket_io_client` — microscopy_server Socket.IO（get_settings 初始化及后续进度等）
+- `socket_io_client` — 兼容设备侧事件通道（如进度/状态事件）
 
 ## WebSocket 消息协议
 
